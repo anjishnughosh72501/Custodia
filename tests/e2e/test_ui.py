@@ -120,6 +120,11 @@ def main() -> int:
         pg.goto(DEFAULT_CHECK_URL)
         pg.wait_for_selector(".scenarios")
 
+        # Compact app bar check
+        check("checker has app-bar", pg.locator(".app-bar").count() == 1)
+        check("no marketing links in checker bar", pg.locator(".app-bar a:has-text('How it works')").count() == 0 and pg.locator(".app-bar a:has-text('What it catches')").count() == 0)
+        check("mode chip is in app-bar", pg.locator(".app-bar .app-bar-mode").count() == 1)
+
         # validation
         pg.click("text=Check claim")
         pg.wait_for_selector(".field-foot .err[role=alert]")

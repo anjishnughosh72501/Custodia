@@ -1,5 +1,5 @@
 import { Link } from "../router";
-import { prefetchChecker } from "../Shell";
+import { prefetchChecker } from "../shells/MarketingShell";
 import { Magnet } from "../vendor/reactbits/Magnet";
 import { LANDING_COPY } from "./copy";
 

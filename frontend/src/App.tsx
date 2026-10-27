@@ -1,5 +1,4 @@
 import { lazy, Suspense } from "react";
-import { Shell } from "./Shell";
 import { useRoute } from "./router";
 import Landing from "./pages/Landing";
 
@@ -25,17 +24,11 @@ export default function App() {
 
   if (route.name === "checker" || route.name === "review") {
     return (
-      <Shell currentRoute={route} hideFooter={true}>
-        <Suspense fallback={<CheckerSkeleton />}>
-          <Checker exampleId={route.exampleId} reviewId={route.reviewId} />
-        </Suspense>
-      </Shell>
+      <Suspense fallback={<CheckerSkeleton />}>
+        <Checker exampleId={route.exampleId} reviewId={route.reviewId} />
+      </Suspense>
     );
   }
 
-  return (
-    <Shell currentRoute={route}>
-      <Landing notFound={route.notFound} />
-    </Shell>
-  );
+  return <Landing notFound={route.notFound} />;
 }

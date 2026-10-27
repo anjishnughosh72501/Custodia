@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppShell } from "../shells/AppShell";
 import { ApiError, createReview, getExamples, getHealth, getReview, requestRewrite } from "../api";
 import { Findings, Risks } from "../Findings";
 import { Inspector } from "../Inspector";
@@ -16,7 +17,6 @@ interface CheckerProps {
 
 export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [health, setHealth] = useState<Health | null>(null);
-  const [healthErr, setHealthErr] = useState(false);
   const [examples, setExamples] = useState<Example[]>([]);
   const [activeExample, setActiveExample] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
@@ -37,7 +37,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const initialExampleLoaded = useRef(false);
 
   useEffect(() => {
-    getHealth().then(setHealth).catch(() => setHealthErr(true));
+    getHealth().then(setHealth).catch(() => {});
     getExamples().then(setExamples).catch(() => setExamples([]));
   }, []);
 
@@ -190,40 +190,11 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   };
 
   const example = examples.find((e) => e.id === activeExample);
-  const mode = health ? (health.llm_configured ? "llm" : "rules") : "";
 
   return (
-    <div className="shell">
-      <header className="top">
-        <div className="brand">
-          <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="8" fill="#14213D" />
-            <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
-            <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
-          </svg>
-          <div>
-            <div className="brand-name">Custodia</div>
-          </div>
-        </div>
-        <div className={`mode ${mode}`} role="status" aria-live="polite">
-          <i aria-hidden="true" />
-          {healthErr ? (
-            <span>Server status unavailable</span>
-          ) : !health ? (
-            <span>Checking server…</span>
-          ) : health.llm_configured ? (
-            <span>
-              Model assistance configured <small>deterministic rules make the decision</small>
-            </span>
-          ) : (
-            <span>
-              Rule-based fallback active <small>no model configured</small>
-            </span>
-          )}
-        </div>
-      </header>
-
-      <section className="lede">
+    <AppShell onNewCheck={reset}>
+      <div className="shell">
+        <section className="lede">
         <h1>Does the wording stay inside the evidence?</h1>
         <p>
           Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each
@@ -362,5 +333,6 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         benchmark. No accuracy figure is claimed.
       </footer>
     </div>
-  );
+  </AppShell>
+);
 }

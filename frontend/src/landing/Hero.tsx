@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "../router";
 import { getHealth, getReview } from "../api";
 import type { Health } from "../types";
-import { prefetchChecker } from "../Shell";
+import { prefetchChecker } from "../shells/MarketingShell";
 import { Magnet } from "../vendor/reactbits/Magnet";
 import { ShinyText } from "../vendor/reactbits/ShinyText";
 import { HeroDemo } from "./HeroDemo";
@@ -30,23 +30,25 @@ export function Hero() {
   const secondaryHref = demoReviewAvailable ? "/r/demo-critical" : "/check?example=critical";
 
   return (
-    <section className="hero-section" aria-label="Introduction">
+    <section className="hero-section hero-full-viewport" aria-label="Introduction">
       <div className="hero-grid">
         <div className="hero-copy">
-          <div className="hero-eyebrow" role="status">
-            {healthLoading || !health ? (
-              <span className="eyebrow-pill neutral">Claim checker</span>
-            ) : health.llm_configured ? (
-              <span className="eyebrow-pill model-ok">
-                <i className="status-dot green" aria-hidden="true" />
-                Model-assisted · deterministic checks decide
-              </span>
-            ) : (
-              <span className="eyebrow-pill rule-mode">
-                <i className="status-dot amber" aria-hidden="true" />
-                Rule-based mode
-              </span>
-            )}
+          <div className="hero-eyebrow-container">
+            <div className="sticker hero-eyebrow" role="status">
+              {healthLoading || !health ? (
+                <span>Claim checker</span>
+              ) : health.llm_configured ? (
+                <span>
+                  <i className="status-dot green" aria-hidden="true" />
+                  Model-assisted · deterministic checks decide
+                </span>
+              ) : (
+                <span>
+                  <i className="status-dot amber" aria-hidden="true" />
+                  Rule-based mode
+                </span>
+              )}
+            </div>
           </div>
 
           <h1 className="hero-h1">
@@ -66,12 +68,27 @@ export function Hero() {
             </Link>
           </div>
 
+          <div className="hero-facts-strip">
+            <span className="fact-item">Seven dimensions</span>
+            <span className="fact-bullet" aria-hidden="true">·</span>
+            <span className="fact-item">Verified quotes only</span>
+            <span className="fact-bullet" aria-hidden="true">·</span>
+            <span className="fact-item">Unclear goes to a person</span>
+          </div>
+
           <p className="hero-disclaimer">{LANDING_COPY.hero.quietNote}</p>
         </div>
 
-        <div className="hero-visual">
+        <div className="hero-visual" id="hero-demo-visual">
           <HeroDemo />
         </div>
+      </div>
+
+      <div className="hero-scroll-cue" aria-hidden="true">
+        <span className="scroll-cue-text">Scroll</span>
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" className="scroll-arrow">
+          <path d="M3 6l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
     </section>
   );

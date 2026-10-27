@@ -1,19 +1,18 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, navigate, type Route } from "./router";
-import { getHealth } from "./api";
-import type { Health } from "./types";
+import { Link, navigate } from "../router";
+import { getHealth } from "../api";
+import type { Health } from "../types";
 
 export const prefetchChecker = () => {
-  import("./pages/Checker");
+  import("../pages/Checker");
 };
 
-interface ShellProps {
-  currentRoute: Route;
+interface MarketingShellProps {
   children: ReactNode;
-  hideFooter?: boolean;
+  notFound?: boolean;
 }
 
-export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
+export function MarketingShell({ children, notFound }: MarketingShellProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
@@ -47,13 +46,11 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
     e.preventDefault();
     setMenuOpen(false);
-    if (currentRoute.name === "landing") {
-      const el = document.getElementById(hash);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth" });
-        window.history.pushState(null, "", `#${hash}`);
-        return;
-      }
+    const el = document.getElementById(hash);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+      window.history.pushState(null, "", `#${hash}`);
+      return;
     }
     navigate(`/#${hash}`);
   };
@@ -61,9 +58,9 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
   const mode = health ? (health.llm_configured ? "llm" : "rules") : "";
 
   return (
-    <div className="app-shell">
+    <div className="marketing-shell">
       <nav
-        className={`shell-nav ${scrolled ? "condensed" : ""}`}
+        className={`marketing-nav shell-nav ${scrolled ? "condensed" : ""}`}
         aria-label="Main navigation"
       >
         <div className="shell-nav-inner">
@@ -145,105 +142,114 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
             </div>
           </div>
         )}
+        <div className="scroll-progress-bar" id="scroll-progress" aria-hidden="true" />
       </nav>
 
-      <main id="main-content" className="shell-main">
+      {notFound && (
+        <div className="shell" style={{ paddingTop: 16 }}>
+          <div className="banner warn" role="alert">
+            <div>
+              <b>Page not found.</b> The URL you followed does not exist. We brought you back to the home page.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main id="main-content" className="landing-main">
         {children}
       </main>
 
-      {!hideFooter && (
-        <footer className="landing-footer">
-          <div className="footer-container">
-            <div className="footer-top">
-              <div className="footer-brand-col">
-                <div className="brand">
-                  <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-                    <rect width="32" height="32" rx="8" fill="#14213D" />
-                    <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
-                    <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
-                  </svg>
-                  <span className="brand-name">Custodia</span>
-                </div>
-                <p className="footer-tagline">
-                  Deterministic claim verification for marketing and compliance.
-                </p>
-                <div className={`mode ${mode} footer-mode`} role="status" aria-live="polite">
-                  <i aria-hidden="true" />
-                  {healthErr ? (
-                    <span>Server status unavailable</span>
-                  ) : !health ? (
-                    <span>Checking server…</span>
-                  ) : health.llm_configured ? (
-                    <span>
-                      Model-assisted <small>· deterministic checks decide</small>
-                    </span>
-                  ) : (
-                    <span>
-                      Rule-based mode <small>· no model configured</small>
-                    </span>
-                  )}
-                </div>
+      <footer className="landing-footer">
+        <div className="footer-container">
+          <div className="footer-top">
+            <div className="footer-brand-col">
+              <div className="brand">
+                <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+                  <rect width="32" height="32" rx="8" fill="#14213D" />
+                  <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
+                  <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
+                </svg>
+                <span className="brand-name">Custodia</span>
               </div>
-
-              <div className="footer-links-grid">
-                <div className="footer-col">
-                  <h4>Product</h4>
-                  <ul>
-                    <li>
-                      <Link href="/check" prefetch={prefetchChecker}>
-                        Check a claim
-                      </Link>
-                    </li>
-                    <li>
-                      <a href="#what-it-catches" onClick={(e) => handleNavClick(e, "what-it-catches")}>
-                        Examples
-                      </a>
-                    </li>
-                    <li>
-                      <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
-                        Limits
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="footer-col">
-                  <h4>Project</h4>
-                  <ul>
-                    <li>
-                      <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
-                        GitHub repository
-                      </a>
-                    </li>
-                    <li>
-                      <a href="https://github.com/anjishnughosh72501/Custodia#readme" target="_blank" rel="noopener noreferrer">
-                        README
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="footer-col">
-                  <h4>Team</h4>
-                  <ul>
-                    <li>Aryan · Engineering & UI</li>
-                    <li>Anjishnu · Rules & Pipeline</li>
-                    <li>Ananya · QA & Evaluation</li>
-                  </ul>
-                </div>
+              <p className="footer-tagline">
+                Deterministic claim verification for marketing and compliance.
+              </p>
+              <div className={`mode ${mode} footer-mode`} role="status" aria-live="polite">
+                <i aria-hidden="true" />
+                {healthErr ? (
+                  <span>Server status unavailable</span>
+                ) : !health ? (
+                  <span>Checking server…</span>
+                ) : health.llm_configured ? (
+                  <span>
+                    Model-assisted <small>· deterministic checks decide</small>
+                  </span>
+                ) : (
+                  <span>
+                    Rule-based mode <small>· no model configured</small>
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="footer-bottom">
-              <p>
-                Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
-                whether the evidence itself is reliable, and it supports English text only. Example scenarios are illustrative
-                and are not a benchmark. No accuracy figure is claimed.
-              </p>
+            <div className="footer-links-grid">
+              <div className="footer-col">
+                <h4>Product</h4>
+                <ul>
+                  <li>
+                    <Link href="/check" prefetch={prefetchChecker}>
+                      Check a claim
+                    </Link>
+                  </li>
+                  <li>
+                    <a href="#what-it-catches" onClick={(e) => handleNavClick(e, "what-it-catches")}>
+                      Examples
+                    </a>
+                  </li>
+                  <li>
+                    <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
+                      Limits
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="footer-col">
+                <h4>Project</h4>
+                <ul>
+                  <li>
+                    <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
+                      GitHub repository
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://github.com/anjishnughosh72501/Custodia#readme" target="_blank" rel="noopener noreferrer">
+                      README
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="footer-col">
+                <h4>Team</h4>
+                <ul>
+                  <li>Aryan · Engineering & UI</li>
+                  <li>Anjishnu · Rules & Pipeline</li>
+                  <li>Ananya · QA & Evaluation</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </footer>
-      )}
+
+          <div className="footer-bottom">
+            <p>
+              Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
+              whether the evidence itself is reliable, and it supports English text only. Example scenarios are illustrative
+              and are not a benchmark. No accuracy figure is claimed.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

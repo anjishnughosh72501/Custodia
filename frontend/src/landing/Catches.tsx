@@ -1,6 +1,6 @@
 import { Link } from "../router";
 import { Reveal } from "../motion/Reveal";
-import { prefetchChecker } from "../Shell";
+import { prefetchChecker } from "../shells/MarketingShell";
 import { LANDING_COPY, type CatchCard } from "./copy";
 
 export function Catches() {

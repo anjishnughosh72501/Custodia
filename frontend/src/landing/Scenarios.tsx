@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "../router";
 import { getExamples } from "../api";
-import { prefetchChecker } from "../Shell";
+import { prefetchChecker } from "../shells/MarketingShell";
 import { Reveal } from "../motion/Reveal";
 import type { Example } from "../types";
 
