@@ -29,13 +29,27 @@ export function VerdictCard({ review, onPickDimension }: { review: Review; onPic
           <span>{risks > 0 ? `${risks} language risk${risks > 1 ? "s" : ""} to judge` : "No blocking language risks"}</span>
         </div>
       </div>
-      <div className="rail" role="group" aria-label="Seven dimensions">
-        {DIMENSIONS.map((d, i) => {
-          const c = byDim.get(d); const t = c ? statusTone(c.status) : "warn";
-          return <button key={d} className={t} style={{ ["--i" as string]: i }} onClick={() => onPickDimension(d)}
-            aria-label={`${DIM_LABEL[d]}: ${c ? reasonLabel(c.reason_code) : "no result"}`} title={`${DIM_LABEL[d]}: ${c ? reasonLabel(c.reason_code) : ""}`}><Icon tone={t} size={14} /></button>;
-        })}
+      <div className="rail dimension-strip" role="group" aria-label="Seven dimensions">
         <span className="rail-cap">Seven dimensions</span>
+        <div className="dimension-strip-blocks">
+          {DIMENSIONS.map((d, i) => {
+            const c = byDim.get(d); const t = c ? statusTone(c.status) : "warn";
+            return (
+              <button
+                key={d}
+                type="button"
+                className={`dim-strip-btn ${t}`}
+                style={{ ["--i" as string]: i }}
+                onClick={() => onPickDimension(d)}
+                aria-label={`${DIM_LABEL[d]}: ${c ? reasonLabel(c.reason_code) : "no result"}`}
+                title={`${DIM_LABEL[d]}: ${c ? reasonLabel(c.reason_code) : ""}`}
+              >
+                <Icon tone={t} size={14} />
+                <span className="dim-strip-name">{DIM_LABEL[d]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

@@ -142,6 +142,19 @@ def main() -> int:
         check("Ctrl+Enter submits; original not approved", pg.inner_text(".verdict h2") == "Not supported by the evidence")
         check("7 dimension findings", pg.locator(".finding").count() == 7)
         check("7 rail buttons", pg.locator(".rail button").count() == 7)
+        check("dimension strip has 7 buttons", pg.locator(".dimension-strip button").count() == 7)
+
+        # Findings filter chips check
+        check("filter chips exist", pg.locator(".filter-chips-group .filter-chip").count() == 4)
+        pg.click(".filter-chips-group .filter-chip.bad")
+        check("filter chip hides non-contradicted findings", pg.locator(".finding").count() < 7)
+        pg.click(".filter-chips-group .filter-chip:first-child")
+        check("all filter chip restores all 7 findings", pg.locator(".finding").count() == 7)
+
+        # Copy report action & toast check
+        pg.click("text=Copy report")
+        pg.wait_for_selector(".toast-item")
+        check("copy report shows toast notification", pg.locator(".toast-item").count() > 0)
 
         # Ensure all 7 finding rows reach computed opacity 1 within 1.5s
         pg.wait_for_function("""() => {
@@ -159,6 +172,14 @@ def main() -> int:
             pg.reload()
             pg.wait_for_selector(".verdict")
             check("/r/<id> of a fresh review restores the verdict after reload", pg.locator(".verdict").count() > 0)
+
+        # Check recent list on new check
+        pg.click("text=New check")
+        pg.wait_for_selector(".recent-checks-panel")
+        check("recent checks list populated after running review", pg.locator(".recent-item").count() > 0)
+        # navigate back to the review for the remaining checks
+        pg.click(".recent-snippet-link")
+        pg.wait_for_selector(".verdict")
 
         # selection, thread, escape
         pg.focus(".finding:nth-child(2) > button")
