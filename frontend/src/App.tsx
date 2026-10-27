@@ -1,8 +1,10 @@
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { useRoute } from "./router";
 import Landing from "./pages/Landing";
+import { ErrorBoundary } from "./ErrorBoundary";
+import { lazyWithRetry } from "./lazyWithRetry";
 
-const Checker = lazy(() => import("./pages/Checker"));
+const Checker = lazyWithRetry(() => import("./pages/Checker"));
 
 function CheckerSkeleton() {
   return (
@@ -23,12 +25,23 @@ export default function App() {
   const route = useRoute();
 
   if (route.name === "checker" || route.name === "review") {
+    const routeKey =
+      route.name === "review"
+        ? `r:${route.reviewId}`
+        : `check:${route.exampleId ?? "default"}`;
+
     return (
-      <Suspense fallback={<CheckerSkeleton />}>
-        <Checker exampleId={route.exampleId} reviewId={route.reviewId} />
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<CheckerSkeleton />}>
+          <Checker key={routeKey} exampleId={route.exampleId} reviewId={route.reviewId} />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
-  return <Landing notFound={route.notFound} />;
+  return (
+    <ErrorBoundary>
+      <Landing notFound={route.notFound} />
+    </ErrorBoundary>
+  );
 }

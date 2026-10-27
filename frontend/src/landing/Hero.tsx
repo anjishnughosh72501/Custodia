@@ -9,6 +9,18 @@ import { initHeroParallax } from "../motion/anime";
 import { HeroDemo } from "./HeroDemo";
 import { LANDING_COPY } from "./copy";
 
+// Module scope cache: probe only once per page load, ignoring errors silently
+let demoCriticalProbePromise: Promise<boolean> | null = null;
+
+function probeDemoCritical(): Promise<boolean> {
+  if (!demoCriticalProbePromise) {
+    demoCriticalProbePromise = getReview("demo-critical")
+      .then((r) => r !== null)
+      .catch(() => false);
+  }
+  return demoCriticalProbePromise;
+}
+
 export function Hero() {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
@@ -21,17 +33,25 @@ export function Hero() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
     getHealth()
       .then((h) => {
-        setHealth(h);
+        if (!cancelled) setHealth(h);
       })
       .catch(() => {})
-      .finally(() => setHealthLoading(false));
+      .finally(() => {
+        if (!cancelled) setHealthLoading(false);
+      });
 
-    // Check if demo-critical review is available
-    getReview("demo-critical")
-      .then(() => setDemoReviewAvailable(true))
-      .catch(() => setDemoReviewAvailable(false));
+    // Check if demo-critical review is available (cached in module scope, silent catch)
+    probeDemoCritical().then((available) => {
+      if (!cancelled) setDemoReviewAvailable(available);
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const secondaryHref = demoReviewAvailable ? "/r/demo-critical" : "/check?example=critical";

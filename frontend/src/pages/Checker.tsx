@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "../shells/AppShell";
 import { navigate } from "../router";
-import { ApiError, createReview, getExamples, getHealth, getReview, requestRewrite } from "../api";
+import { ApiError, createReview, fetchReview, getExamples, getHealth, requestRewrite } from "../api";
 import { animateResultEntrance } from "../motion/anime";
 import { Findings, Risks } from "../Findings";
 import { Inspector } from "../Inspector";
@@ -238,9 +238,18 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     setLoading(true);
     setError("");
 
-    getReview(reviewId)
-      .then((r) => {
+    fetchReview(reviewId)
+      .then(({ review: r, raw }) => {
         if (cancelled) return;
+        if (!r) {
+          if (raw && typeof raw === "object") {
+            const d = raw as Record<string, unknown>;
+            if (typeof d.claim_text === "string") setClaim(d.claim_text);
+            if (typeof d.evidence_text === "string") setEvidence(d.evidence_text);
+          }
+          setError("This saved result can't be displayed. Run the check again.");
+          return;
+        }
         setReview(r);
         setClaim(r.claim_text);
         setEvidence(r.evidence_text);
@@ -488,9 +497,19 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
               </div>
 
               {error && (
-                <div className="banner bad" role="alert" style={{ marginTop: 24 }}>
+                <div
+                  className={`banner ${error.includes("can't be displayed") ? "warn saved-review-error" : "bad"}`}
+                  role="alert"
+                  style={{ marginTop: 24 }}
+                >
                   <div>
-                    <b>Could not check claim.</b> {error}
+                    {error.includes("can't be displayed") ? (
+                      <span>{error}</span>
+                    ) : (
+                      <>
+                        <b>Could not check claim.</b> {error}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
