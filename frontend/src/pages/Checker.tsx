@@ -258,13 +258,26 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
       )}
 
       {loading && (
-        <div className="panel checking checker-skeleton" role="status" aria-live="polite">
-          <div className="dots" aria-hidden="true">
-            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-              <i key={i} style={{ ["--i" as string]: i }} />
-            ))}
+        <div className="verdict-skeleton panel" role="status" aria-live="polite">
+          <div className="verdict-skel-left">
+            <div className="skel-line skel-title" />
+            <div className="skel-line skel-sub" />
+            <div className="skel-rows">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skel-row">
+                  <div className="skel-bullet" />
+                  <div className="skel-line skel-text" />
+                </div>
+              ))}
+            </div>
+            <p className="skel-note">Comparing the seven dimensions against your evidence…</p>
           </div>
-          <p>Comparing the seven dimensions against your evidence…</p>
+          <div className="verdict-skel-rail" aria-hidden="true">
+            {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="skel-circle" />
+            ))}
+            <div className="rail-cap">7 dimensions</div>
+          </div>
         </div>
       )}
 
