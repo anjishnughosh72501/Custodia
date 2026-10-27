@@ -130,6 +130,7 @@ def main() -> int:
         pg.wait_for_selector(".field-foot .err[role=alert]")
         check("empty submit shows claim+evidence errors", pg.locator(".field-foot .err[role=alert]").count() == 2)
         check("no verdict on empty submit", pg.locator(".verdict").count() == 0)
+        check("ring is absent on a fresh /check", pg.locator(".fit-ring-card").count() == 0)
         pg.fill("#evidence", "x" * 20001)
         check("over-limit evidence flagged", "Shorten the evidence" in pg.inner_text("#ev-f"))
         pg.fill("#evidence", "")
@@ -143,6 +144,15 @@ def main() -> int:
         check("7 dimension findings", pg.locator(".finding").count() == 7)
         check("7 rail buttons", pg.locator(".rail button").count() == 7)
         check("dimension strip has 7 buttons", pg.locator(".dimension-strip button").count() == 7)
+
+        # Evidence fit ring checks
+        check("fit ring is visible after check", pg.locator(".fit-ring-card").count() == 1)
+        ring_label = pg.get_attribute(".fit-ring-card", "aria-label") or ""
+        check("fit ring accessible name has Evidence fit and 35 out of 100", "Evidence fit" in ring_label and "35 out of 100" in ring_label)
+        pg.click("text=How is this calculated?")
+        pg.wait_for_selector(".fit-breakdown-table")
+        check("disclosure opens and lists seven dimension rows", pg.locator(".fit-breakdown-table tbody tr:not(.fit-adjustment-row)").count() == 7)
+        pg.click("text=How is this calculated?")
 
         # Findings filter chips check
         check("filter chips exist", pg.locator(".filter-chips-group .filter-chip").count() == 4)
@@ -172,6 +182,7 @@ def main() -> int:
             pg.reload()
             pg.wait_for_selector(".verdict")
             check("/r/<id> of a fresh review restores the verdict after reload", pg.locator(".verdict").count() > 0)
+            check("fit ring appears after loading /r/<id>", pg.locator(".fit-ring-card").count() == 1)
 
         # Check recent list on new check
         pg.click("text=New check")
@@ -270,7 +281,60 @@ def main() -> int:
         pg.close()
 
         # -------------------------------------------------------------
-        # 5. Mobile checker screenshot after critical example run
+        # 5. Reduced-motion test for Evidence fit ring & screenshot
+        # -------------------------------------------------------------
+        pg_rm = b.new_context(viewport={"width": 1280, "height": 900}, reduced_motion="reduce").new_page()
+        pg_rm.goto(DEFAULT_CHECK_URL + "?example=critical")
+        pg_rm.wait_for_selector("#workspace")
+        pg_rm.click("text=Check claim")
+        pg_rm.wait_for_selector(".verdict")
+        check("reduced motion: fit ring shows number 35 immediately", pg_rm.inner_text(".fit-ring-number").strip() == "35")
+        pg_rm.screenshot(path=str(SCREENSHOTS_DIR / "desktop_ring_not_supported.png"))
+        pg_rm.close()
+
+        # -------------------------------------------------------------
+        # 6. Screenshots of supported, needs-review, and not-supported rings
+        # -------------------------------------------------------------
+        # Supported desktop & mobile
+        pg_supp = b.new_context(viewport={"width": 1280, "height": 900}).new_page()
+        pg_supp.goto(DEFAULT_CHECK_URL + "?example=supported")
+        pg_supp.wait_for_selector("#workspace")
+        pg_supp.click("text=Check claim")
+        pg_supp.wait_for_selector(".verdict")
+        pg_supp.wait_for_timeout(850)
+        pg_supp.screenshot(path=str(SCREENSHOTS_DIR / "desktop_ring_supported.png"))
+        pg_supp.close()
+
+        pg_supp_mob = b.new_context(viewport={"width": 390, "height": 844}).new_page()
+        pg_supp_mob.goto(DEFAULT_CHECK_URL + "?example=supported")
+        pg_supp_mob.wait_for_selector("#workspace")
+        pg_supp_mob.click("text=Check claim")
+        pg_supp_mob.wait_for_selector(".verdict")
+        pg_supp_mob.wait_for_timeout(850)
+        pg_supp_mob.screenshot(path=str(SCREENSHOTS_DIR / "mobile_ring_supported.png"))
+        pg_supp_mob.close()
+
+        # Needs-review desktop & mobile
+        pg_warn = b.new_context(viewport={"width": 1280, "height": 900}).new_page()
+        pg_warn.goto(DEFAULT_CHECK_URL + "?example=pct-points")
+        pg_warn.wait_for_selector("#workspace")
+        pg_warn.click("text=Check claim")
+        pg_warn.wait_for_selector(".verdict")
+        pg_warn.wait_for_timeout(850)
+        pg_warn.screenshot(path=str(SCREENSHOTS_DIR / "desktop_ring_needs_review.png"))
+        pg_warn.close()
+
+        pg_warn_mob = b.new_context(viewport={"width": 390, "height": 844}).new_page()
+        pg_warn_mob.goto(DEFAULT_CHECK_URL + "?example=pct-points")
+        pg_warn_mob.wait_for_selector("#workspace")
+        pg_warn_mob.click("text=Check claim")
+        pg_warn_mob.wait_for_selector(".verdict")
+        pg_warn_mob.wait_for_timeout(850)
+        pg_warn_mob.screenshot(path=str(SCREENSHOTS_DIR / "mobile_ring_needs_review.png"))
+        pg_warn_mob.close()
+
+        # -------------------------------------------------------------
+        # 7. Mobile checker screenshot after critical example run
         # -------------------------------------------------------------
         pg_mob_chk = b.new_context(viewport={"width": 390, "height": 844}).new_page()
         pg_mob_chk.goto(DEFAULT_CHECK_URL)
@@ -278,8 +342,9 @@ def main() -> int:
         pg_mob_chk.click("text=Critical example")
         pg_mob_chk.click("text=Check claim")
         pg_mob_chk.wait_for_selector(".verdict")
-        pg_mob_chk.wait_for_timeout(400)
+        pg_mob_chk.wait_for_timeout(850)
         pg_mob_chk.screenshot(path=str(SCREENSHOTS_DIR / "mobile_checker.png"), full_page=True)
+        pg_mob_chk.screenshot(path=str(SCREENSHOTS_DIR / "mobile_ring_not_supported.png"))
         pg_mob_chk.close()
 
         b.close()

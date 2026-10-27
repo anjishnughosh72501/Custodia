@@ -20,6 +20,7 @@ import { MiniVerdictBar } from "../checker/MiniVerdictBar";
 import { ErrorBoundary } from "../checker/ErrorBoundary";
 import { OfflineNotice } from "../checker/OfflineNotice";
 import { copyReportToClipboard } from "../checker/report";
+import { FitRing, FitRingSkeleton } from "../checker/FitRing";
 import { VERDICT_TITLE } from "../labels";
 import { DIMENSIONS, type Example, type Health, type Review, type RewriteResult } from "../types";
 
@@ -87,7 +88,6 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
 
   const verdictRef = useRef<HTMLDivElement>(null);
   const inspectorRef = useRef<HTMLDivElement>(null);
-  const initialExampleLoaded = useRef(false);
 
   const addToast = useCallback((text: string, tone: ToastMessage["tone"] = "ok") => {
     const id = `${Date.now()}-${Math.random()}`;
@@ -219,17 +219,19 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
 
   // Handle ?example=<id> once examples load
   useEffect(() => {
-    if (!initialExampleLoaded.current && exampleId && examples.length > 0) {
+    if (exampleId && examples.length > 0) {
       const match = examples.find((e) => e.id === exampleId);
       if (match) {
         setClaim(match.claim);
         setEvidence(match.evidence);
         setActiveExample(match.id);
         setTouched(false);
-        initialExampleLoaded.current = true;
+        clearResults();
       }
+    } else if (!reviewId && !exampleId) {
+      clearResults();
     }
-  }, [exampleId, examples]);
+  }, [exampleId, reviewId, examples]);
 
   // Handle /r/:id deep links
   useEffect(() => {
@@ -617,13 +619,18 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
 
             {/* Right Rail Column */}
             <div className="checker-right-rail">
-              {!review ? (
+              {loading ? (
+                <div className="rail-sticky-wrapper">
+                  <FitRingSkeleton />
+                </div>
+              ) : !review ? (
                 <div className="rail-sticky-wrapper">
                   <RecentChecks onLoadText={(c, e) => { setClaim(c); setEvidence(e); }} />
                   <Legend />
                 </div>
               ) : (
                 <div className="rail-sticky-wrapper">
+                  <FitRing review={review} />
                   <CaseRail
                     review={review}
                     selected={selected}

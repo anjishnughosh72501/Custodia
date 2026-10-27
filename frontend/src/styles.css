@@ -2483,6 +2483,176 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
   margin-top: 20px;
 }
 
+/* Evidence Fit Ring */
+.fit-ring-card {
+  border: var(--nb-line) solid var(--ink);
+  border-radius: var(--r-nb);
+  background: var(--paper);
+  box-shadow: var(--nb-shadow);
+  padding: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.fit-ring-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fit-ring-visual-wrap {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 12px auto 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fit-ring-svg {
+  width: 132px;
+  height: 132px;
+}
+.fit-ring-track {
+  fill: none;
+  stroke: var(--rule);
+}
+.fit-ring-progress {
+  fill: none;
+  transition: stroke-dashoffset .2s ease-out;
+}
+.stroke-ok { stroke: var(--ok); }
+.stroke-warn { stroke: var(--warn); }
+.stroke-bad { stroke: var(--bad); }
+
+.fit-ring-center-content {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.fit-ring-number-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+}
+.fit-ring-number {
+  font: 700 32px/1 var(--serif);
+  color: var(--ink);
+}
+.fit-ring-max {
+  font-size: 13px;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-left: 2px;
+}
+.fit-ring-emdash {
+  font: 700 32px/1 var(--serif);
+  color: var(--ink-3);
+}
+.fit-ring-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-2);
+  margin-top: 4px;
+}
+.fit-ring-unavailable-note {
+  font-size: 12px;
+  color: var(--warn-ink);
+  margin: 8px 0;
+  text-align: center;
+}
+.fit-ring-disclaimer {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-3);
+  text-align: center;
+  margin: 8px 0 0;
+  font-style: italic;
+}
+.fit-ring-calculation-wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.fit-calc-toggle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 auto;
+}
+.fit-calc-toggle:hover {
+  color: var(--ink);
+}
+.fit-calc-details {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--ivory);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  font-size: 12px;
+}
+.fit-breakdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.fit-breakdown-table th, .fit-breakdown-table td {
+  padding: 5px 6px;
+}
+.fit-breakdown-table thead tr {
+  border-bottom: 1px solid var(--rule);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.fit-breakdown-table tbody tr {
+  border-bottom: 1px solid rgba(20, 33, 61, 0.05);
+}
+.fit-breakdown-table tfoot tr {
+  border-top: 1.5px solid var(--ink);
+  font-weight: 700;
+}
+.fit-status-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.fit-status-tag.supported { background: var(--ok-bg); color: var(--ok-ink); }
+.fit-status-tag.contradicted { background: var(--bad-bg); color: var(--bad-ink); }
+.fit-status-tag.unknown { background: var(--warn-bg); color: var(--warn-ink); }
+.skel-ring {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 9px solid var(--sunk);
+  margin: 10px auto;
+  animation: pulse 1.5s infinite;
+}
+
+@media (max-width: 640px) {
+  .fit-ring-visual-wrap {
+    width: 104px;
+    height: 104px;
+  }
+  .fit-ring-svg {
+    width: 104px;
+    height: 104px;
+  }
+  .fit-ring-number {
+    font-size: 26px;
+  }
+}
+
 /* Print Stylesheet */
 @media print {
   .app-bar, .checker-right-rail, .actions, .scenarios, .field-quick-actions,

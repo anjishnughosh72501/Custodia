@@ -143,6 +143,7 @@ python tests/e2e/test_ui.py
 - **English text only** in the current engine release.
 - **No external source fetching:** Custodia evaluates only the text provided in the workspace.
 - **Single primary statistic:** Compares the primary metric per statement; ambiguous multi-statistic evidence is marked for human review.
+- **Evidence fit score is not accuracy:** The score is an editorial summary of the seven comparisons, not an accuracy or source reliability measure; no accuracy figure is claimed.
 
 ---
 

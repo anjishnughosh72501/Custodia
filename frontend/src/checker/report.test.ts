@@ -42,6 +42,7 @@ describe("Markdown report generation", () => {
     // Check title, metadata
     expect(md).toContain("# Custodia Claim Verification Report");
     expect(md).toContain("**Verdict**: Not supported by the evidence");
+    expect(md).toContain("**Evidence fit**: 35 / 100");
     expect(md).toContain("**Date**: 2026-10-27");
     expect(md).toContain("**Engine**: v0.3.0");
 

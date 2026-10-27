@@ -144,6 +144,10 @@ export const LANDING_COPY = {
         desc: "It does not judge whether the supplied evidence itself is genuine, unmanipulated, or methodologically sound.",
       },
       {
+        title: "Evidence fit is not accuracy",
+        desc: "The Evidence fit score is an editorial summary of the seven comparisons, not an accuracy or source reliability measure. No accuracy figure is claimed.",
+      },
+      {
         title: "“Supported” is not “true”",
         desc: "A Supported verdict confirms only that the wording stays inside the provided text; it never means objectively true.",
       },
@@ -157,6 +161,12 @@ export const LANDING_COPY = {
   faq: {
     title: "Frequently asked questions",
     items: [
+      {
+        id: "evidence-fit",
+        question: "What is the Evidence fit score?",
+        answer:
+          "It measures how closely the wording stays within your supplied evidence, summarising the seven dimension comparisons into an explainable 0 to 100 number. It does not measure whether the source itself is reliable. The categorical verdict, not the number, is what decides approval.",
+      },
       {
         id: "why-not-llm",
         question: "Why not just ask an AI to judge?",

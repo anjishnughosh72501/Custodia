@@ -1,5 +1,6 @@
 import type { Review } from "../types";
 import { DIM_LABEL, STATUS_LABEL, VERDICT_TITLE, reasonLabel } from "../labels";
+import { computeFit, FIT_SCORE_LABEL } from "../fitScore";
 
 export interface GenerateReportOptions {
   date?: string;
@@ -13,12 +14,22 @@ export function generateMarkdownReport(
   const dateStr = options.date ?? new Date().toISOString().split("T")[0];
   const verdictTitle =
     VERDICT_TITLE[review.verdict.status] ?? review.verdict.status;
+  const fit = computeFit(review);
 
   const lines: string[] = [];
 
   lines.push("# Custodia Claim Verification Report");
   lines.push("");
   lines.push(`**Verdict**: ${verdictTitle}`);
+  if (fit.score !== null) {
+    lines.push(
+      `**${FIT_SCORE_LABEL}**: ${fit.score} / 100 (summary of the seven comparisons; not a measure of source reliability)`
+    );
+  } else {
+    lines.push(
+      `**${FIT_SCORE_LABEL}**: Unavailable (summary of the seven comparisons; not a measure of source reliability)`
+    );
+  }
   lines.push(`**Date**: ${dateStr}`);
   lines.push(`**Engine**: v${review.engine_version}`);
   lines.push(`**Mode**: ${review.extractor_mode}`);

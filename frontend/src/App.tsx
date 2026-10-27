@@ -25,15 +25,10 @@ export default function App() {
   const route = useRoute();
 
   if (route.name === "checker" || route.name === "review") {
-    const routeKey =
-      route.name === "review"
-        ? `r:${route.reviewId}`
-        : `check:${route.exampleId ?? "default"}`;
-
     return (
       <ErrorBoundary>
         <Suspense fallback={<CheckerSkeleton />}>
-          <Checker key={routeKey} exampleId={route.exampleId} reviewId={route.reviewId} />
+          <Checker exampleId={route.exampleId} reviewId={route.reviewId} />
         </Suspense>
       </ErrorBoundary>
     );

@@ -7,6 +7,8 @@ import {
   stagger,
 } from "animejs";
 
+export { animate, createScope, onScroll, splitText, createDrawable, stagger };
+
 /**
  * Returns true if the user prefers reduced motion or if window is unavailable.
  */

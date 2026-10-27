@@ -12,4 +12,13 @@
 10. Phone width (about 390px): no sideways scrolling, buttons reachable, panes stacked.
 11. Keyboard only: Tab to a finding, Enter expands it and focuses its words, Escape clears. Ctrl/Cmd+Enter submits.
 12. Turn on reduced motion in the OS: no sliding or drawing animation.
+13. Verify Evidence fit ring: shows score on verified review (critical: 35, supported: 100, mean-median: 49, opposite: 49, pct-points: 79, missing-condition: 79); absent on empty form/loading; "How is this calculated?" disclosure lists all 7 dimensions; disclaimer present.
 Log bugs with: steps, expected, actual, screenshot.
+
+## Expected Evidence fit scores
+- `critical`: 35 / 100 (base 40, minus 5 for review risk, under cap)
+- `supported`: 100 / 100 (all 7 dimensions supported)
+- `mean-median`: 49 / 100 (base 86, capped at 49 by NOT_SUPPORTED verdict)
+- `opposite`: 49 / 100 (base 86, capped at 49 by NOT_SUPPORTED verdict)
+- `pct-points`: 79 / 100 (base 83, capped at 79 by NEEDS_HUMAN_REVIEW verdict)
+- `missing-condition`: 79 / 100 (base 91, capped at 79 by NEEDS_HUMAN_REVIEW verdict)
