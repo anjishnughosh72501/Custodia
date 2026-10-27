@@ -199,6 +199,26 @@ def main() -> int:
         check("selecting a language risk highlights its words", pg.locator("mark.sel").count() >= 1)
         pg.keyboard.press("Escape")
 
+        # Risk cards & consideration
+        check("risk cards exist", pg.locator(".risk-card").count() > 0)
+        pg.click(".risk-considered-checkbox >> nth=0")
+        check("considering risk updates progress bar", "1/" in pg.inner_text(".risk-progress-label") or "%" in pg.inner_text(".risk-progress-percent"))
+
+        # Command palette open via button and shortcut
+        pg.click(".palette-trigger-btn")
+        pg.wait_for_selector(".command-palette-dialog")
+        check("command palette dialog opens", pg.locator(".command-palette-dialog").is_visible())
+        pg.keyboard.press("Escape")
+        pg.wait_for_timeout(200)
+        check("command palette dialog closes on Escape", not pg.locator(".command-palette-dialog").is_visible())
+
+        # Keyboard j hotkey navigation
+        pg.locator("body").focus()
+        pg.keyboard.press("j")
+        pg.wait_for_timeout(200)
+        check("j hotkey selects dimension finding", pg.locator(".finding.sel").count() == 1 or pg.locator("mark.sel").count() >= 1)
+        pg.keyboard.press("Escape")
+
         # rewrite -> verified
         pg.click("text=Suggest narrower wording")
         pg.wait_for_selector(".result-box")
@@ -206,6 +226,8 @@ def main() -> int:
         check("suggestion re-verified as supported", "Passed re-verification" in pg.inner_text(".result-box"))
         check("suggestion vs verified badges distinct", pg.locator(".badge.sugg").count() == 1 and pg.locator(".badge.ver-ok").count() == 1)
         check("copy label says verified", "Copy verified wording" in pg.inner_text(".rw-actions"))
+        check("rewrite diff panel visible", pg.locator(".rewrite-diff-panel").count() > 0)
+        check("diff insertions or deletions rendered", pg.locator(".diff-ins").count() > 0 or pg.locator(".diff-del").count() > 0)
 
         # editing -> stale, no approval shown for edited text
         pg.fill("#rewrite", "Setup time fell by 35% for all businesses.")

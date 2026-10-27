@@ -1,5 +1,5 @@
-import type { Comparison, Dimension, LanguageRisk } from "./types";
-import { CATEGORY_LABEL, DIM_HELP, DIM_LABEL, reasonLabel } from "./labels";
+import type { Comparison, Dimension } from "./types";
+import { DIM_HELP, DIM_LABEL, reasonLabel } from "./labels";
 import { Chevron, Icon, StatusTag, statusTone } from "./ui";
 import type { FindingFilterType } from "./checker/FindingsFilter";
 
@@ -108,78 +108,4 @@ export function Findings({
   );
 }
 
-export function Risks({
-  risks,
-  selected,
-  onSelect,
-  consideredRisks = {},
-  onToggleConsidered,
-}: {
-  risks: LanguageRisk[];
-  selected: string | null;
-  onSelect: (id: string | null) => void;
-  consideredRisks?: Record<string, boolean>;
-  onToggleConsidered?: (id: string) => void;
-}) {
-  if (!risks.length)
-    return (
-      <div className="panel empty">
-        No wording risks found by the rule-based checks. That is not a guarantee: the rules cover a fixed list of patterns in English.
-      </div>
-    );
-
-  return (
-    <div className="panel risks">
-      {risks.map((r, i) => {
-        const id = `risk:${i}`,
-          sel = selected === id;
-        const isConsidered = !!consideredRisks[id];
-        return (
-          <div key={id} className={`risk-card-container${sel ? " sel" : ""}`}>
-            <button
-              className={`risk${sel ? " sel" : ""}`}
-              aria-pressed={sel}
-              onClick={() => onSelect(sel ? null : id)}
-            >
-              <span className="risk-head">
-                {r.title}
-                <span
-                  className={`tag ${r.severity === "review" ? "warn" : "ok"}`}
-                  style={
-                    r.severity === "note"
-                      ? {
-                          color: "var(--ink-2)",
-                          background: "var(--sunk)",
-                          borderColor: "var(--rule-strong)",
-                        }
-                      : undefined
-                  }
-                >
-                  {r.severity === "review" ? "Needs judgement" : "Note"}
-                </span>
-                <span className="code">
-                  {CATEGORY_LABEL[r.category] ?? r.category}
-                  {r.source === "model" ? " · model-flagged, quote verified" : ""}
-                </span>
-              </span>
-              <p>{r.explanation}</p>
-              <p className="fix">
-                <b>What would resolve it:</b> {r.resolution}
-              </p>
-            </button>
-            {onToggleConsidered && (
-              <label className="risk-considered-checkbox">
-                <input
-                  type="checkbox"
-                  checked={isConsidered}
-                  onChange={() => onToggleConsidered(id)}
-                />
-                <span>I’ve considered this</span>
-              </label>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+export { RiskCards as Risks } from "./checker/RiskCards";

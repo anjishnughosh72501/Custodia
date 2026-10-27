@@ -86,3 +86,22 @@ export function generateMarkdownReport(
 
   return lines.join("\n");
 }
+
+export async function copyReportToClipboard(
+  review: Review,
+  consideredRisks?: Record<string, boolean>
+): Promise<boolean> {
+  const md = generateMarkdownReport(review, { consideredRisks });
+  try {
+    await navigator.clipboard.writeText(md);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = md;
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}

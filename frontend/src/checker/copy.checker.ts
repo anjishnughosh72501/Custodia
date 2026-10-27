@@ -56,4 +56,34 @@ export const CHECKER_COPY = {
     multipleSentences: "Hint: The claim appears to contain multiple sentences. Custodia works best checking one claim at a time.",
     numberMissing: "Hint: A number in the claim may not appear in the evidence text.",
   },
+  palette: {
+    searchPlaceholder: "Type a command or search scenarios…",
+  },
+  diff: {
+    diffView: "Diff",
+    cleanView: "Clean",
+    copyWording: "Copy wording",
+    useAsDraft: "Use as new draft",
+  },
+  risks: {
+    title: "Language risks",
+    considered: "Considered",
+    resolve: "What would resolve it",
+  },
+  scenarios: {
+    browseAll: "Browse scenarios",
+    surpriseMe: "Surprise me",
+    search: "Search scenarios by title, metric or tag…",
+  },
+  shortcuts: {
+    title: "Keyboard shortcuts",
+    items: [
+      { key: "⌘K / Ctrl+K", desc: "Open command palette" },
+      { key: "?", desc: "Show keyboard shortcuts" },
+      { key: "j / k", desc: "Select next / previous dimension" },
+      { key: "e", desc: "Expand / collapse findings" },
+      { key: "Ctrl+Enter", desc: "Run verification check" },
+      { key: "Esc", desc: "Clear selection or close modal" },
+    ],
+  },
 };

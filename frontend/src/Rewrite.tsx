@@ -3,11 +3,13 @@ import type { Review, RewriteResult } from "./types";
 import { DIMENSIONS } from "./types";
 import { DIM_LABEL, VERDICT_TITLE, reasonLabel } from "./labels";
 import { Icon, statusTone, verdictTone } from "./ui";
+import { RewriteDiff } from "./checker/RewriteDiff";
 
 interface Props {
   review: Review; draft: string; setDraft: (s: string) => void; result: RewriteResult | null; verifiedText: string | null;
   busy: "suggest" | "verify" | null; error: string; exampleCandidate?: string;
   onSuggest: () => void; onVerify: () => void;
+  onUseAsDraft?: (text: string) => void;
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -24,7 +26,7 @@ async function copy(text: string): Promise<boolean> {
   }
 }
 
-export function RewritePanel({ review, draft, setDraft, result, verifiedText, busy, error, exampleCandidate, onSuggest, onVerify }: Props) {
+export function RewritePanel({ review, draft, setDraft, result, verifiedText, busy, error, exampleCandidate, onSuggest, onVerify, onUseAsDraft }: Props) {
   const [copied, setCopied] = useState<"" | "ok" | "fail">("");
   const hasResult = !!result && result.text !== null;
   const stale = hasResult && verifiedText !== draft;
@@ -90,6 +92,13 @@ export function RewritePanel({ review, draft, setDraft, result, verifiedText, bu
             {current.notes.filter((n) => !SOURCE_LABEL[current.source] || n).slice(0, 3).map((n, i) => <p key={i} className="code">{n}</p>)}
           </div>
         </div>
+      )}
+      {draft.trim() && draft !== review.claim_text && (
+        <RewriteDiff
+          originalClaim={review.claim_text}
+          suggestedText={draft}
+          onUseAsDraft={onUseAsDraft}
+        />
       )}
       {review.verdict.status === "SUPPORTED_BY_SUPPLIED_EVIDENCE" && !result && <p className="code">The original draft already passed. You can still test an edited version here.</p>}
     </div>

@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import type { Example, Health } from "./types";
 import { useDraft } from "./checker/useDraft";
 import { CHECKER_COPY } from "./checker/copy.checker";
+import { ScenarioPicker } from "./checker/ScenarioPicker";
 
 interface Props {
   claim: string;
@@ -118,6 +119,33 @@ export function Workspace(p: Props) {
   const cPct = Math.min(100, (p.claim.length / p.limits.claim_chars) * 100);
   const ePct = Math.min(100, (p.evidence.length / p.limits.evidence_chars) * 100);
 
+  // Client-side guidance hints (strictly hints, never findings)
+  const claimHints = useMemo(() => {
+    const hints: string[] = [];
+    const t = p.claim.trim();
+    if (t) {
+      const sentences = t.split(/[.!?]+\s+/).filter(Boolean);
+      if (sentences.length > 1) {
+        hints.push("Hint: Multiple sentences detected. Custodia evaluates one claim at a time best.");
+      }
+      if (!/\d/.test(t)) {
+        hints.push("Hint: No numbers detected. If checking a quantified metric, include the specific figure.");
+      }
+    }
+    return hints;
+  }, [p.claim]);
+
+  const evidenceHints = useMemo(() => {
+    const hints: string[] = [];
+    const t = p.evidence.trim();
+    if (t) {
+      if (t.length < 35 || t.split(/\s+/).length < 5) {
+        hints.push("Hint: Evidence is very brief. Supplying complete context helps match all dimensions.");
+      }
+    }
+    return hints;
+  }, [p.evidence]);
+
   return (
     <div className="panel workspace-panel" onKeyDown={key}>
       {showBanner && (
@@ -163,6 +191,11 @@ export function Workspace(p: Props) {
               {showAll ? "Show fewer" : `${p.examples.length - 5} more`}
             </button>
           )}
+          <ScenarioPicker
+            examples={p.examples}
+            activeExampleId={p.activeExample}
+            onSelectExample={p.onExample}
+          />
           {active && (
             <p className="scenario-note">
               <b>{active.tag}:</b> {active.blurb}{" "}
@@ -226,6 +259,13 @@ export function Workspace(p: Props) {
               {p.claim.length.toLocaleString()} / {p.limits.claim_chars.toLocaleString()}
             </span>
           </div>
+          {claimHints.length > 0 && (
+            <div className="field-hints-list">
+              {claimHints.map((h, i) => (
+                <p key={i} className="field-hint-text">{h}</p>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="field evidence">
@@ -283,6 +323,13 @@ export function Workspace(p: Props) {
               {p.evidence.length.toLocaleString()} / {p.limits.evidence_chars.toLocaleString()}
             </span>
           </div>
+          {evidenceHints.length > 0 && (
+            <div className="field-hints-list">
+              {evidenceHints.map((h, i) => (
+                <p key={i} className="field-hint-text">{h}</p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

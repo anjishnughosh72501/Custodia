@@ -14,8 +14,14 @@ import { CaseRail } from "../checker/CaseRail";
 import { FindingsFilter, type FindingFilterType } from "../checker/FindingsFilter";
 import { Toasts, type ToastMessage } from "../checker/Toasts";
 import { useLocalList } from "../checker/useLocalList";
+import { CommandPalette } from "../checker/CommandPalette";
+import { ShortcutSheet } from "../checker/ShortcutSheet";
+import { MiniVerdictBar } from "../checker/MiniVerdictBar";
+import { ErrorBoundary } from "../checker/ErrorBoundary";
+import { OfflineNotice } from "../checker/OfflineNotice";
+import { copyReportToClipboard } from "../checker/report";
 import { VERDICT_TITLE } from "../labels";
-import type { Example, Health, Review, RewriteResult } from "../types";
+import { DIMENSIONS, type Example, type Health, type Review, type RewriteResult } from "../types";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -73,6 +79,9 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [consideredRisks, setConsideredRisks] = useState<Record<string, boolean>>({});
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const undoDraftRef = useRef<string | null>(null);
 
   const { addItem } = useLocalList();
 
@@ -138,12 +147,67 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   }, []);
 
   useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelected(null);
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // ⌘K or Ctrl+K opens command palette
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      // Check if target is inside an input/textarea
+      const target = e.target as HTMLElement | null;
+      const isInput =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+
+      if (isInput) return;
+
+      if (e.key === "?") {
+        e.preventDefault();
+        setShortcutsOpen(true);
+      } else if (e.key === "Escape") {
+        setSelected(null);
+      } else if (e.key === "j" || e.key === "k") {
+        if (review) {
+          e.preventDefault();
+          const dims = DIMENSIONS;
+          const currentIndex = selected ? dims.indexOf(selected as any) : -1;
+          const nextIndex =
+            e.key === "j"
+              ? (currentIndex + 1) % dims.length
+              : (currentIndex - 1 + dims.length) % dims.length;
+          const nextDim = dims[nextIndex];
+          setSelected(nextDim);
+          document.getElementById(`finding-${nextDim}`)?.scrollIntoView({
+            behavior: reduce() ? "auto" : "smooth",
+            block: "nearest",
+          });
+        }
+      } else if (e.key === "e") {
+        if (review) {
+          e.preventDefault();
+          if (selected) {
+            setExpandedFindings((prev) => {
+              const next = new Set(prev);
+              if (next.has(selected)) next.delete(selected);
+              else next.add(selected);
+              return next;
+            });
+          } else {
+            setExpandedFindings((prev) =>
+              prev.size === DIMENSIONS.length ? new Set() : new Set(DIMENSIONS)
+            );
+          }
+        }
+      }
     };
-    document.addEventListener("keydown", k);
-    return () => document.removeEventListener("keydown", k);
-  }, []);
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [review, selected]);
 
   // Stagger entrance animation via anime.js
   useEffect(() => {
@@ -338,181 +402,253 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     setSelected(null);
   };
 
+  const copyShareLink = () => {
+    if (!review?.id) return;
+    const url = `${window.location.origin}/r/${review.id}`;
+    navigator.clipboard.writeText(url).then(
+      () => addToast("Link copied to clipboard", "ok"),
+      () => addToast("Failed to copy link", "bad")
+    );
+  };
+
+  const copyFullReport = () => {
+    if (!review) return;
+    copyReportToClipboard(review, consideredRisks).then((ok: boolean) => {
+      if (ok) addToast("Full markdown report copied", "ok");
+      else addToast("Failed to copy report", "bad");
+    });
+  };
+
+  const handleUseAsDraft = (newClaim: string) => {
+    undoDraftRef.current = claim;
+    setClaim(newClaim);
+    addToast("Wording applied to draft", "ok");
+    document.getElementById("workspace")?.scrollIntoView({
+      behavior: reduce() ? "auto" : "smooth",
+      block: "start",
+    });
+  };
+
+  const jumpToSection = (sectionId: string) => {
+    const el = document.getElementById(sectionId);
+    if (el) {
+      el.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "start" });
+    }
+  };
+
   const consideredCount = Object.values(consideredRisks).filter(Boolean).length;
 
   return (
-    <AppShell onNewCheck={reset}>
-      <Toasts toasts={toasts} onDismiss={removeToast} />
+    <ErrorBoundary>
+      <AppShell
+        onNewCheck={reset}
+        onOpenRecent={() => {
+          const rEl = document.querySelector(".recent-checks-panel");
+          rEl?.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "center" });
+        }}
+        onOpenPalette={() => setPaletteOpen(true)}
+      >
+        <Toasts toasts={toasts} onDismiss={removeToast} />
+        <MiniVerdictBar
+          review={review}
+          onJumpToVerdict={() => jumpToSection("verdict-card")}
+        />
 
-      <div className="shell checker-shell">
-        <div className="checker-layout-grid">
-          {/* Main Column */}
-          <div className="checker-main-col">
-            <section className="lede">
-              <h1>Does the wording stay inside the evidence?</h1>
-              <p>
-                Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each
-                finding rests on, and sends anything unclear to a person. It checks your supplied evidence only; it cannot tell you a
-                claim is true.
-              </p>
-            </section>
+        <div className="shell checker-shell">
+          <OfflineNotice />
 
-            <div id="workspace">
-              <Workspace
-                claim={claim}
-                evidence={evidence}
-                setClaim={setClaim}
-                setEvidence={setEvidence}
-                limits={limits}
-                examples={examples}
-                activeExample={activeExample}
-                onExample={loadExample}
-                onSubmit={submit}
-                onReset={reset}
-                loading={loading}
-                touched={touched}
-                onToast={addToast}
-              />
-            </div>
+          <div className="checker-layout-grid">
+            {/* Main Column */}
+            <div className="checker-main-col">
+              <section className="lede">
+                <h1>Does the wording stay inside the evidence?</h1>
+                <p>
+                  Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each
+                  finding rests on, and sends anything unclear to a person. It checks your supplied evidence only; it cannot tell you a
+                  claim is true.
+                </p>
+              </section>
 
-            {error && (
-              <div className="banner bad" role="alert" style={{ marginTop: 24 }}>
-                <div>
-                  <b>Could not check claim.</b> {error}
-                </div>
-              </div>
-            )}
-
-            {loading && <VerdictSkeleton />}
-
-            {review && !loading && (
-              <div key={review.id} className="checker-results-group">
-                <div ref={verdictRef} tabIndex={-1} style={{ outline: "none", scrollMarginTop: "80px" }}>
-                  {review.warnings.filter((w) => !w.startsWith("Running with the rule-based extractor")).length > 0 && (
-                    <div className="banner warn" role="note" style={{ marginTop: 28 }}>
-                      <div>
-                        {review.warnings
-                          .filter((w) => !w.startsWith("Running with the rule-based extractor"))
-                          .map((w, i) => (
-                            <p key={i}>{w}</p>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                  <VerdictCard review={review} onPickDimension={pick} />
-                </div>
-
-                <section className="section" ref={inspectorRef} aria-labelledby="insp-h">
-                  <div className="section-head">
-                    <h2 id="insp-h">Evidence inspector</h2>
-                    <p>Draft and evidence side by side, highlighted from verified character positions in your own text.</p>
-                  </div>
-                  <Inspector
-                    claim={review.claim_text}
-                    evidence={review.evidence_text}
-                    comparisons={review.comparisons}
-                    risks={review.language_risks}
-                    selected={selected}
-                    onSelect={setSelected}
-                  />
-                </section>
-
-                <section className="section" aria-labelledby="findings-h">
-                  <div className="section-head">
-                    <h2 id="findings-h">Seven dimensions</h2>
-                    <p>
-                      Select a finding to focus its words in the inspector. Anything marked “needs review” is never treated as supported.
-                    </p>
-                  </div>
-
-                  <FindingsFilter
-                    activeFilter={findingFilter}
-                    onFilterChange={setFindingFilter}
-                    counts={findingCounts}
-                    onExpandAll={handleExpandAllFindings}
-                    onCollapseAll={handleCollapseAllFindings}
-                    showDetails={showTechnicalDetails}
-                    onToggleDetails={() => setShowTechnicalDetails(!showTechnicalDetails)}
-                  />
-
-                  <Findings
-                    comparisons={review.comparisons}
-                    selected={selected}
-                    onSelect={setSelected}
-                    filter={findingFilter}
-                    expandedIds={expandedFindings}
-                    showDetails={showTechnicalDetails}
-                  />
-                </section>
-
-                <section className="section" aria-labelledby="risks-h">
-                  <div className="section-head">
-                    <h2 id="risks-h">Language risks</h2>
-                    <p>
-                      Specific words and structures that introduce legal or regulatory risk regardless of evidence.
-                    </p>
-                  </div>
-                  <Risks
-                    risks={review.language_risks}
-                    selected={selected}
-                    onSelect={setSelected}
-                    consideredRisks={consideredRisks}
-                    onToggleConsidered={toggleConsideredRisk}
-                  />
-                </section>
-
-                <div className="section" aria-labelledby="rewrite-h">
-                  <div className="section-head">
-                    <h2 id="rewrite-h">Suggested wording</h2>
-                    <p>A supported phrasing aligned with the evidence, tested against the same deterministic rules.</p>
-                  </div>
-                  <RewritePanel
-                    review={review}
-                    draft={draft}
-                    setDraft={setDraft}
-                    result={rw}
-                    verifiedText={verifiedText}
-                    busy={busy}
-                    error={rwError}
-                    exampleCandidate={example?.candidate}
-                    onSuggest={suggest}
-                    onVerify={verify}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Right Rail Column */}
-          <div className="checker-right-rail">
-            {!review ? (
-              <div className="rail-sticky-wrapper">
-                <RecentChecks onLoadText={(c, e) => { setClaim(c); setEvidence(e); }} />
-                <Legend />
-              </div>
-            ) : (
-              <div className="rail-sticky-wrapper">
-                <CaseRail
-                  review={review}
-                  selected={selected}
-                  onSelect={setSelected}
-                  consideredCount={consideredCount}
-                  totalRisks={review.language_risks.length}
+              <div id="workspace">
+                <Workspace
+                  claim={claim}
+                  evidence={evidence}
+                  setClaim={setClaim}
+                  setEvidence={setEvidence}
+                  limits={limits}
+                  examples={examples}
+                  activeExample={activeExample}
+                  onExample={loadExample}
+                  onSubmit={submit}
+                  onReset={reset}
+                  loading={loading}
+                  touched={touched}
                   onToast={addToast}
-                  onEditAndRerun={handleEditAndRerun}
-                  consideredRisks={consideredRisks}
                 />
               </div>
-            )}
+
+              {error && (
+                <div className="banner bad" role="alert" style={{ marginTop: 24 }}>
+                  <div>
+                    <b>Could not check claim.</b> {error}
+                  </div>
+                </div>
+              )}
+
+              {loading && <VerdictSkeleton />}
+
+              {review && !loading && (
+                <div key={review.id} className="checker-results-group">
+                  <div id="verdict-card" ref={verdictRef} tabIndex={-1} style={{ outline: "none", scrollMarginTop: "80px" }}>
+                    {review.warnings.filter((w) => !w.startsWith("Running with the rule-based extractor")).length > 0 && (
+                      <div className="banner warn" role="note" style={{ marginTop: 28 }}>
+                        <div>
+                          {review.warnings
+                            .filter((w) => !w.startsWith("Running with the rule-based extractor"))
+                            .map((w, i) => (
+                              <p key={i}>{w}</p>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                    <VerdictCard review={review} onPickDimension={pick} />
+                  </div>
+
+                  <section className="section" id="inspector" ref={inspectorRef} aria-labelledby="insp-h">
+                    <div className="section-head">
+                      <h2 id="insp-h">Evidence inspector</h2>
+                      <p>Draft and evidence side by side, highlighted from verified character positions in your own text.</p>
+                    </div>
+                    <Inspector
+                      claim={review.claim_text}
+                      evidence={review.evidence_text}
+                      comparisons={review.comparisons}
+                      risks={review.language_risks}
+                      selected={selected}
+                      onSelect={setSelected}
+                    />
+                  </section>
+
+                  <section className="section" id="findings" aria-labelledby="findings-h">
+                    <div className="section-head">
+                      <h2 id="findings-h">Seven dimensions</h2>
+                      <p>
+                        Select a finding to focus its words in the inspector. Anything marked “needs review” is never treated as supported.
+                      </p>
+                    </div>
+
+                    <FindingsFilter
+                      activeFilter={findingFilter}
+                      onFilterChange={setFindingFilter}
+                      counts={findingCounts}
+                      onExpandAll={handleExpandAllFindings}
+                      onCollapseAll={handleCollapseAllFindings}
+                      showDetails={showTechnicalDetails}
+                      onToggleDetails={() => setShowTechnicalDetails(!showTechnicalDetails)}
+                    />
+
+                    <Findings
+                      comparisons={review.comparisons}
+                      selected={selected}
+                      onSelect={setSelected}
+                      filter={findingFilter}
+                      expandedIds={expandedFindings}
+                      showDetails={showTechnicalDetails}
+                    />
+                  </section>
+
+                  <section className="section" id="risks" aria-labelledby="risks-h">
+                    <div className="section-head">
+                      <h2 id="risks-h">Language risks</h2>
+                      <p>
+                        Specific words and structures that introduce legal or regulatory risk regardless of evidence.
+                      </p>
+                    </div>
+                    <Risks
+                      risks={review.language_risks}
+                      selected={selected}
+                      onSelect={setSelected}
+                      consideredRisks={consideredRisks}
+                      onToggleConsidered={toggleConsideredRisk}
+                    />
+                  </section>
+
+                  <div className="section" id="rewrite-section" aria-labelledby="rewrite-h">
+                    <div className="section-head">
+                      <h2 id="rewrite-h">Suggested wording</h2>
+                      <p>A supported phrasing aligned with the evidence, tested against the same deterministic rules.</p>
+                    </div>
+                    <RewritePanel
+                      review={review}
+                      draft={draft}
+                      setDraft={setDraft}
+                      result={rw}
+                      verifiedText={verifiedText}
+                      busy={busy}
+                      error={rwError}
+                      exampleCandidate={example?.candidate}
+                      onSuggest={suggest}
+                      onVerify={verify}
+                      onUseAsDraft={handleUseAsDraft}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Rail Column */}
+            <div className="checker-right-rail">
+              {!review ? (
+                <div className="rail-sticky-wrapper">
+                  <RecentChecks onLoadText={(c, e) => { setClaim(c); setEvidence(e); }} />
+                  <Legend />
+                </div>
+              ) : (
+                <div className="rail-sticky-wrapper">
+                  <CaseRail
+                    review={review}
+                    selected={selected}
+                    onSelect={setSelected}
+                    consideredCount={consideredCount}
+                    totalRisks={review.language_risks.length}
+                    onToast={addToast}
+                    onEditAndRerun={handleEditAndRerun}
+                    consideredRisks={consideredRisks}
+                  />
+                </div>
+              )}
+            </div>
           </div>
+
+          <footer>
+            Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge whether the
+            evidence itself is reliable, and it supports English text only. Example scenarios are illustrative and are not a
+            benchmark. No accuracy figure is claimed.
+          </footer>
         </div>
 
-        <footer>
-          Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge whether the
-          evidence itself is reliable, and it supports English text only. Example scenarios are illustrative and are not a
-          benchmark. No accuracy figure is claimed.
-        </footer>
-      </div>
-    </AppShell>
+        <CommandPalette
+          isOpen={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          onNewCheck={reset}
+          onCopyLink={copyShareLink}
+          onCopyReport={copyFullReport}
+          onOpenRecent={() => {
+            const rEl = document.querySelector(".recent-checks-panel");
+            rEl?.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "center" });
+          }}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+          onLoadExample={loadExample}
+          examples={examples}
+          hasReview={!!review}
+          onJumpToSection={jumpToSection}
+        />
+
+        <ShortcutSheet
+          isOpen={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
+        />
+      </AppShell>
+    </ErrorBoundary>
   );
 }
