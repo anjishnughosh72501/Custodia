@@ -9,7 +9,7 @@ from app.store import Store
 
 def test_spa_routes_serve_index_html(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     index_file = tmp_path / "index.html"
-    index_file.write_text("<!doctype html><html><body>ClaimFit Stub</body></html>", encoding="utf-8")
+    index_file.write_text("<!doctype html><html><body>Custodia Stub</body></html>", encoding="utf-8")
     monkeypatch.setenv("SCOPELOCK_WEB_DIR", str(tmp_path))
 
     svc = ReviewService(Store(":memory:"))
@@ -19,15 +19,15 @@ def test_spa_routes_serve_index_html(tmp_path: Path, monkeypatch: pytest.MonkeyP
     # Check /, /check, /r/abc return stub index.html
     r_root = client.get("/")
     assert r_root.status_code == 200
-    assert "ClaimFit Stub" in r_root.text
+    assert "Custodia Stub" in r_root.text
 
     r_check = client.get("/check")
     assert r_check.status_code == 200
-    assert "ClaimFit Stub" in r_check.text
+    assert "Custodia Stub" in r_check.text
 
     r_review = client.get("/r/abc")
     assert r_review.status_code == 200
-    assert "ClaimFit Stub" in r_review.text
+    assert "Custodia Stub" in r_review.text
 
     # Unknown /api route returns JSON 404
     r_api_nope = client.get("/api/nope")
@@ -46,7 +46,7 @@ def test_spa_routes_frontend_not_built_503(tmp_path: Path, monkeypatch: pytest.M
 
     r_root = client.get("/")
     assert r_root.status_code == 503
-    assert "ClaimFit API is running" in r_root.text
+    assert "Custodia API is running" in r_root.text
 
     r_check = client.get("/check")
     assert r_check.status_code == 503

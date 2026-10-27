@@ -1,12 +1,12 @@
 # Third-Party Notices and Licences
 
-The following components were adapted from React Bits (https://reactbits.dev) and integrated into ClaimFit under the MIT Licence:
+The following components were adapted from React Bits (https://reactbits.dev) and integrated into Custodia under the MIT Licence:
 
 ## 1. Shiny Text
 - **Source**: https://reactbits.dev/text-animations/shiny-text
 - **Repository**: https://github.com/DavidHDev/react-bits
 - **Licence**: MIT Licence
-- **Modifications**: Re-styled to use ClaimFit palette tokens (`--ink`, `--ink-2`, `--paper`), fully accessible with DOM text selectable and visible on first paint.
+- **Modifications**: Re-styled to use Custodia palette tokens (`--ink`, `--ink-2`, `--paper`), fully accessible with DOM text selectable and visible on first paint.
 
 ## 2. Magnet
 - **Source**: https://reactbits.dev/animations/magnet

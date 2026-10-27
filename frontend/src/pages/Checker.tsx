@@ -202,7 +202,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
             <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
           </svg>
           <div>
-            <div className="brand-name">ClaimFit</div>
+            <div className="brand-name">Custodia</div>
           </div>
         </div>
         <div className={`mode ${mode}`} role="status" aria-live="polite">
@@ -226,7 +226,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
       <section className="lede">
         <h1>Does the wording stay inside the evidence?</h1>
         <p>
-          Paste a marketing claim and the evidence behind it. ClaimFit compares seven dimensions, shows the exact words each
+          Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each
           finding rests on, and sends anything unclear to a person. It checks your supplied evidence only; it cannot tell you a
           claim is true.
         </p>
@@ -357,7 +357,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
       )}
 
       <footer>
-        ClaimFit is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge whether the
+        Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge whether the
         evidence itself is reliable, and it supports English text only. Example scenarios are illustrative and are not a
         benchmark. No accuracy figure is claimed.
       </footer>

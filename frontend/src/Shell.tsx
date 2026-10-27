@@ -67,13 +67,13 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
         aria-label="Main navigation"
       >
         <div className="shell-nav-inner">
-          <Link href="/" className="shell-brand" aria-label="ClaimFit Home">
+          <Link href="/" className="shell-brand" aria-label="Custodia Home">
             <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
               <rect width="32" height="32" rx="8" fill="#14213D" />
               <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
               <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
             </svg>
-            <span className="brand-name">ClaimFit</span>
+            <span className="brand-name">Custodia</span>
           </Link>
 
           <div className="shell-nav-links desktop-only">
@@ -162,7 +162,7 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
                     <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
                     <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
                   </svg>
-                  <span className="brand-name">ClaimFit</span>
+                  <span className="brand-name">Custodia</span>
                 </div>
                 <p className="footer-tagline">
                   Deterministic claim verification for marketing and compliance.
@@ -236,7 +236,7 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
 
             <div className="footer-bottom">
               <p>
-                ClaimFit is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
+                Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
                 whether the evidence itself is reliable, and it supports English text only. Example scenarios are illustrative
                 and are not a benchmark. No accuracy figure is claimed.
               </p>

@@ -17,11 +17,11 @@ export interface FaqItem {
 export const LANDING_COPY = {
   hero: {
     headline: "Catch claims that outgrow their evidence before you publish.",
-    sub: "Paste a marketing claim and the evidence behind it. ClaimFit compares seven dimensions, shows the exact words each finding rests on, and sends anything unclear to a person.",
+    sub: "Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each finding rests on, and sends anything unclear to a person.",
     ctaPrimary: "Check a claim",
     ctaSecondary: "See a live example",
     quietNote: "Checks your supplied evidence only. It cannot tell you a claim is true.",
-    cardCaption: "Real output from the ClaimFit engine for a sample claim.",
+    cardCaption: "Real output from the Custodia engine for a sample claim.",
   },
 
   trustRow: [
@@ -50,7 +50,7 @@ export const LANDING_COPY = {
       },
       {
         number: "02",
-        title: "ClaimFit compares seven dimensions",
+        title: "Custodia compares seven dimensions",
         desc: "Metric, value, unit, population, time window, conditions, and strength are compared.",
       },
       {
@@ -128,8 +128,8 @@ export const LANDING_COPY = {
   },
 
   limits: {
-    title: "What ClaimFit does not do",
-    subtitle: "Soundness requires clear boundaries. ClaimFit is an evidence comparator, not a truth oracle.",
+    title: "What Custodia does not do",
+    subtitle: "Soundness requires clear boundaries. Custodia is an evidence comparator, not a truth oracle.",
     items: [
       {
         title: "English text only",
@@ -149,7 +149,7 @@ export const LANDING_COPY = {
       },
       {
         title: "Not legal advice",
-        desc: "ClaimFit provides deterministic editorial checks for reviewers; it is not a substitute for regulatory or legal counsel.",
+        desc: "Custodia provides deterministic editorial checks for reviewers; it is not a substitute for regulatory or legal counsel.",
       },
     ],
   },
@@ -167,7 +167,7 @@ export const LANDING_COPY = {
         id: "accuracy",
         question: "How accurate is it?",
         answer:
-          "ClaimFit reports measured false approvals across verified test cases. This is not an accuracy figure, because real-world claims vary widely; rather, it is a guarantee that our rules prioritize withholding approval over rubber-stamping.",
+          "Custodia reports measured false approvals across verified test cases. This is not an accuracy figure, because real-world claims vary widely; rather, it is a guarantee that our rules prioritize withholding approval over rubber-stamping.",
       },
       {
         id: "model-failure",

@@ -1,13 +1,13 @@
-# ClaimFit / Custodia
+# Custodia
 
 > **Deterministic claim verification for marketing and compliance.**  
 > Checks whether marketing wording stays strictly within the supplied evidence before publication.
 
 ---
 
-## About ClaimFit
+## About Custodia
 
-ClaimFit (also known as Custodia) is an automated, deterministic verification tool designed for marketing leads, compliance officers, and legal reviewers who must substantiate public claims against backing data (reports, clinical studies, benchmark metrics, or whitepapers).
+Custodia is an automated, deterministic verification tool designed for marketing leads, compliance officers, and legal reviewers who must substantiate public claims against backing data (reports, clinical studies, benchmark metrics, or whitepapers).
 
 ### The Problem
 Marketing copy frequently stretches the underlying data:
@@ -22,13 +22,13 @@ Typical LLM-based checkers are vulnerable to prompt injection, hallucinations, a
 1. **Code decides, not the model**: The model is only used to propose verbatim quote candidates and semantic flags. Deterministic rule-based engines verify character positions against original source text and make all verdict decisions. Prompt injection or hallucinated output can never force an approval.
 2. **Every finding has receipts**: All findings rest on verified character spans and exact quotes in the user's text.
 3. **Unclear goes to human review**: If an extraction cannot be verified with certainty, the claim is withheld and flagged as `Needs human review`—never rubber-stamped.
-4. **"Supported" is not "objectively true"**: A `Supported` verdict only indicates that the draft wording stays within the provided evidence text; ClaimFit does not crawl the web or vouch for the external veracity of the evidence itself.
+4. **"Supported" is not "objectively true"**: A `Supported` verdict only indicates that the draft wording stays within the provided evidence text; Custodia does not crawl the web or vouch for the external veracity of the evidence itself.
 
 ---
 
 ## How It Works
 
-ClaimFit evaluates claims through a multi-stage deterministic pipeline:
+Custodia evaluates claims through a multi-stage deterministic pipeline:
 
 ```
 [Draft Claim + Evidence Text]
@@ -141,7 +141,7 @@ python tests/e2e/test_ui.py
 ## Known Limits
 
 - **English text only** in the current engine release.
-- **No external source fetching:** ClaimFit evaluates only the text provided in the workspace.
+- **No external source fetching:** Custodia evaluates only the text provided in the workspace.
 - **Single primary statistic:** Compares the primary metric per statement; ambiguous multi-statistic evidence is marked for human review.
 
 ---

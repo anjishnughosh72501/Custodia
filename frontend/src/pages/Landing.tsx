@@ -21,7 +21,7 @@ export default function Landing({ notFound }: LandingProps) {
         {notFound && (
           <div className="banner warn" role="alert" style={{ marginTop: 24, marginBottom: 12 }}>
             <div>
-              <b>Page not found.</b> The URL you visited does not exist. We’ve brought you to the ClaimFit home page.
+              <b>Page not found.</b> The URL you visited does not exist. We’ve brought you to the Custodia home page.
             </div>
           </div>
         )}
