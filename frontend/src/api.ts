@@ -18,12 +18,13 @@ async function call<T>(path: string, init?: RequestInit, timeoutMs = 45000): Pro
   } catch (err) {
     if (err instanceof ApiError) throw err;
     if ((err as Error).name === "AbortError") throw new ApiError("TIMEOUT", "The check took too long. Try again, or shorten the evidence.");
-    throw new ApiError("NETWORK", "Could not reach the ScopeLock server. Check your connection and try again.");
+    throw new ApiError("NETWORK", "Could not reach the ClaimFit server. Check your connection and try again.");
   } finally { clearTimeout(timer); }
 }
 
 export const getHealth = () => call<Health>("/api/health", undefined, 8000);
 export const getExamples = () => call<{ examples: Example[] }>("/api/examples", undefined, 8000).then((r) => r.examples);
+export const getReview = (id: string) => call<Review>(`/api/reviews/${id}`);
 export const createReview = (claim_text: string, evidence_text: string) =>
   call<Review>("/api/reviews", { method: "POST", body: JSON.stringify({ claim_text, evidence_text }) });
 export const requestRewrite = (id: string, candidate_text?: string) =>

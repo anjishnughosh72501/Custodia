@@ -12,6 +12,13 @@
   --shadow-2: 0 1px 0 rgba(20,33,61,.04), 0 8px 24px -12px rgba(20,33,61,.18);
   --serif: "Fraunces Variable", Georgia, "Times New Roman", serif;
   --sans: "Hanken Grotesk Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ease-out: cubic-bezier(.2,.7,.2,1);
+  --ease-spring: cubic-bezier(.2,.8,.3,1.3);
+  --dur-1: 150ms;
+  --dur-2: 250ms;
+  --dur-3: 500ms;
+  --dur-4: 800ms;
+  --stagger: 60ms;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -24,6 +31,193 @@ h1, h2, h3, p { margin: 0; }
 
 .shell { max-width: 1160px; margin: 0 auto; padding: 0 24px 96px; }
 @media (max-width: 640px) { .shell { padding: 0 16px 72px; } }
+
+/* ---------- shell & navigation ---------- */
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.shell-main { flex: 1 0 auto; }
+.shell-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  height: 72px;
+  background: var(--ivory);
+  transition: height var(--dur-2) var(--ease-out), background var(--dur-2) var(--ease-out),
+              border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+}
+.shell-nav.condensed {
+  height: 56px;
+  background: rgba(255, 254, 250, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: var(--shadow-1);
+}
+.shell-nav-inner {
+  max-width: 1160px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.shell-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.shell-nav-links a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 550;
+  transition: color var(--dur-1) var(--ease-out);
+}
+.shell-nav-links a:hover {
+  color: var(--ink);
+}
+.shell-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mobile-nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  padding: 6px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+.mobile-nav-drawer {
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: var(--shadow-2);
+  padding: 16px 24px 24px;
+  animation: reveal var(--dur-2) var(--ease-out) both;
+}
+.mobile-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.mobile-nav-items a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 550;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.mobile-cta {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.desktop-only { display: flex; }
+.mobile-only { display: none; }
+
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+  .mobile-only { display: flex !important; }
+  .shell-nav-inner { padding: 0 16px; }
+}
+
+/* ---------- landing footer ---------- */
+.landing-footer {
+  margin-top: 80px;
+  background: var(--paper);
+  border-top: 1px solid var(--rule);
+  padding: 64px 24px 40px;
+}
+.footer-container {
+  max-width: 1160px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+.footer-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr);
+  gap: 48px;
+}
+@media (max-width: 768px) {
+  .footer-top { grid-template-columns: 1fr; gap: 36px; }
+}
+.footer-brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.footer-tagline {
+  color: var(--ink-3);
+  font-size: 14.5px;
+  max-width: 32ch;
+}
+.footer-mode {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+.footer-links-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+@media (max-width: 640px) {
+  .footer-links-grid { grid-template-columns: 1fr 1fr; }
+}
+.footer-col h4 {
+  font-size: 14px;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-2);
+  margin-bottom: 14px;
+}
+.footer-col ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.footer-col a {
+  color: var(--ink-3);
+  text-decoration: none;
+  font-size: 14.5px;
+  transition: color var(--dur-1) var(--ease-out);
+}
+.footer-col a:hover {
+  color: var(--ink);
+}
+.footer-col li {
+  color: var(--ink-3);
+  font-size: 14px;
+}
+.footer-bottom {
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  color: var(--ink-3);
+  font-size: 13.5px;
+  line-height: 1.6;
+  max-width: 82ch;
+}
 
 /* ---------- header ---------- */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0 8px; flex-wrap: wrap; }
@@ -206,7 +400,29 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
 @keyframes rowin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
 @keyframes draw { to { stroke-dashoffset: 0; } }
+/* ---------- view transitions ---------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+  animation-timing-function: cubic-bezier(.2,.7,.2,1);
+}
+::view-transition-old(root) {
+  animation-name: vt-fade-out;
+}
+::view-transition-new(root) {
+  animation-name: vt-fade-in;
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
   .thread path { stroke-dashoffset: 0; }
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
 }
