@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "../shells/AppShell";
 import { ApiError, createReview, getExamples, getHealth, getReview, requestRewrite } from "../api";
+import { animateResultEntrance } from "../motion/anime";
 import { Findings, Risks } from "../Findings";
 import { Inspector } from "../Inspector";
 import { RewritePanel } from "../Rewrite";
@@ -48,6 +49,13 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     document.addEventListener("keydown", k);
     return () => document.removeEventListener("keydown", k);
   }, []);
+
+  useEffect(() => {
+    if (!review || loading) return;
+    const verdictCard = verdictRef.current?.querySelector(".verdict") as HTMLElement | null;
+    const findings = Array.from(document.querySelectorAll(".finding")) as HTMLElement[];
+    return animateResultEntrance(verdictCard, findings);
+  }, [review?.id, loading]);
 
   // Handle ?example=<id> once examples load
   useEffect(() => {

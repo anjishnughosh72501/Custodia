@@ -1,11 +1,19 @@
+import { useEffect, useRef } from "react";
 import { Reveal } from "../motion/Reveal";
+import { splitHeading } from "../motion/anime";
 import { LANDING_COPY } from "./copy";
 
 export function Limits() {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    return splitHeading(headingRef.current);
+  }, []);
+
   return (
     <section id="limits" className="section limits-section" aria-labelledby="limits-heading">
       <div className="section-head">
-        <h2 id="limits-heading">{LANDING_COPY.limits.title}</h2>
+        <h2 id="limits-heading" ref={headingRef}>{LANDING_COPY.limits.title}</h2>
         <p>{LANDING_COPY.limits.subtitle}</p>
       </div>
 

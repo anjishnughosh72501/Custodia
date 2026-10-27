@@ -1,7 +1,8 @@
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { DIM_LABEL, DIM_HELP, STATUS_LABEL, reasonLabel } from "../labels";
 import { statusTone } from "../ui";
 import { Reveal } from "../motion/Reveal";
+import { splitHeading } from "../motion/anime";
 import type { Dimension } from "../types";
 import { HERO_SAMPLE } from "./heroSample";
 import { LANDING_COPY } from "./copy";
@@ -18,6 +19,11 @@ const ALL_DIMENSIONS: Dimension[] = [
 
 export function Dimensions() {
   const [selected, setSelected] = useState<Dimension>("value");
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    return splitHeading(headingRef.current);
+  }, []);
 
   const activeCmp = HERO_SAMPLE.comparisons.find((c) => c.dimension === selected);
   const tone = activeCmp ? statusTone(activeCmp.status) : "warn";
@@ -42,7 +48,7 @@ export function Dimensions() {
   return (
     <section className="section dimensions-section" aria-labelledby="dim-explorer-h">
       <div className="section-head">
-        <h2 id="dim-explorer-h">{LANDING_COPY.dimensions.title}</h2>
+        <h2 id="dim-explorer-h" ref={headingRef}>{LANDING_COPY.dimensions.title}</h2>
         <p>{LANDING_COPY.dimensions.subtitle}</p>
       </div>
 

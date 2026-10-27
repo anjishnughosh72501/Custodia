@@ -1,9 +1,22 @@
+import { useEffect, useRef } from "react";
 import { Link } from "../router";
 import { Reveal } from "../motion/Reveal";
 import { prefetchChecker } from "../shells/MarketingShell";
+import { initBentoEntrance, splitHeading } from "../motion/anime";
 import { LANDING_COPY, type CatchCard } from "./copy";
 
 export function Catches() {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const cleanupHeading = splitHeading(headingRef.current);
+    const cleanupGrid = initBentoEntrance(gridRef.current);
+    return () => {
+      cleanupHeading?.();
+      cleanupGrid?.();
+    };
+  }, []);
   const renderClaimWithUnderline = (claim: string, stretched: string) => {
     const idx = claim.indexOf(stretched);
     if (idx === -1) {
@@ -23,11 +36,11 @@ export function Catches() {
   return (
     <section id="what-it-catches" className="section catches-section" aria-labelledby="catches-heading">
       <div className="section-head">
-        <h2 id="catches-heading">{LANDING_COPY.catches.title}</h2>
+        <h2 id="catches-heading" ref={headingRef}>{LANDING_COPY.catches.title}</h2>
         <p>{LANDING_COPY.catches.subtitle}</p>
       </div>
 
-      <div className="catches-bento-grid">
+      <div ref={gridRef} className="catches-bento-grid">
         {LANDING_COPY.catches.cards.map((card: CatchCard, idx: number) => (
           <Reveal key={card.id} staggerIndex={idx} className="catch-card-wrapper">
             <div className="panel catch-bento-card">

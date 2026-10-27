@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, navigate } from "../router";
 import { getHealth } from "../api";
 import type { Health } from "../types";
+import { initScrollProgressBar } from "../motion/anime";
 
 export const prefetchChecker = () => {
   import("../pages/Checker");
@@ -18,6 +19,11 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return initScrollProgressBar(progressBarRef.current);
+  }, []);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealthErr(true));
@@ -142,7 +148,7 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
             </div>
           </div>
         )}
-        <div className="scroll-progress-bar" id="scroll-progress" aria-hidden="true" />
+        <div ref={progressBarRef} className="scroll-progress-bar" id="scroll-progress" aria-hidden="true" />
       </nav>
 
       {notFound && (

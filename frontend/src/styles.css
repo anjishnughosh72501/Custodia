@@ -1100,7 +1100,6 @@ html.js .reveal-item.revealed {
   box-shadow: var(--nb-shadow);
   position: relative;
   overflow: hidden;
-  animation: reveal var(--dur-3) var(--ease-out) both;
 }
 @media (max-width: 760px) { .verdict { grid-template-columns: 1fr; padding: 22px 20px; } }
 .verdict.ok { border-left-color: var(--ok); background: linear-gradient(90deg, var(--ok-bg), var(--paper) 55%); }
@@ -1147,7 +1146,7 @@ html.js .reveal-item.revealed {
 
 /* ---------- findings ---------- */
 .findings { display: grid; }
-.finding { border-top: 1px solid var(--rule); animation: rowin .4s ease both; animation-delay: calc(var(--i) * 45ms); }
+.finding { border-top: 1px solid var(--rule); }
 .finding:first-child { border-top: 0; }
 .finding > button { width: 100%; text-align: left; display: grid; grid-template-columns: 22px 150px minmax(0, 1fr) auto; gap: 8px 14px; align-items: center; padding: 14px 18px; background: transparent; border: 0; cursor: pointer; transition: background .15s; }
 @media (max-width: 760px) { .finding > button { grid-template-columns: 22px minmax(0, 1fr) auto; } .finding .f-reason { grid-column: 2 / -1; } }

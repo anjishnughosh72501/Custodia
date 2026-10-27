@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Reveal } from "../motion/Reveal";
+import { splitHeading } from "../motion/anime";
 import { LANDING_COPY, type FaqItem } from "./copy";
 
 export function Faq() {
   const [openIds, setOpenIds] = useState<Set<string>>(new Set(["why-not-llm"]));
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    return splitHeading(headingRef.current);
+  }, []);
 
   const toggle = (id: string) => {
     setOpenIds((prev) => {
@@ -20,7 +26,7 @@ export function Faq() {
   return (
     <section id="faq" className="section faq-section" aria-labelledby="faq-heading">
       <div className="section-head">
-        <h2 id="faq-heading">{LANDING_COPY.faq.title}</h2>
+        <h2 id="faq-heading" ref={headingRef}>{LANDING_COPY.faq.title}</h2>
         <p>Common questions about deterministic claim verification and safety boundaries.</p>
       </div>
 

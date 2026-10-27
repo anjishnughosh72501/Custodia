@@ -1,11 +1,26 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Reveal } from "../motion/Reveal";
-import { useInView } from "../motion/useInView";
+import { initHiwConnector, splitHeading } from "../motion/anime";
 import { LANDING_COPY } from "./copy";
 
 export function HowItWorks() {
   const sectionRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(sectionRef, { threshold: 0.2 });
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const pathRef = useRef<SVGPathElement>(null);
+  const badgesRef = useRef<HTMLElement[]>([]);
+
+  useEffect(() => {
+    const cleanupHeading = splitHeading(headingRef.current);
+    const cleanupConnector = initHiwConnector(
+      sectionRef.current,
+      pathRef.current,
+      badgesRef.current
+    );
+    return () => {
+      cleanupHeading?.();
+      cleanupConnector?.();
+    };
+  }, []);
 
   return (
     <section
@@ -15,14 +30,29 @@ export function HowItWorks() {
       aria-labelledby="hiw-heading"
     >
       <div className="section-head">
-        <h2 id="hiw-heading">{LANDING_COPY.howItWorks.title}</h2>
+        <h2 id="hiw-heading" ref={headingRef}>
+          {LANDING_COPY.howItWorks.title}
+        </h2>
         <p>{LANDING_COPY.howItWorks.subtitle}</p>
       </div>
 
       <div className="hiw-container">
-        {/* Connecting line */}
-        <div className={`hiw-track-line ${inView ? "drawn" : ""}`} aria-hidden="true">
-          <div className="hiw-track-progress" />
+        {/* SVG connecting line drawn with anime.js createDrawable */}
+        <div className="hiw-track-line" aria-hidden="true">
+          <svg
+            className="hiw-track-svg"
+            viewBox="0 0 1000 4"
+            preserveAspectRatio="none"
+          >
+            <path
+              ref={pathRef}
+              d="M 0 2 H 1000"
+              fill="none"
+              stroke="var(--ink)"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+          </svg>
         </div>
 
         <div className="hiw-steps-grid">
@@ -30,7 +60,14 @@ export function HowItWorks() {
             <Reveal key={st.number} staggerIndex={idx} className="hiw-step-col">
               <div className="hiw-card panel">
                 <div className="hiw-step-header">
-                  <span className="hiw-step-num">{st.number}</span>
+                  <span
+                    ref={(el) => {
+                      if (el) badgesRef.current[idx] = el;
+                    }}
+                    className="hiw-step-num"
+                  >
+                    {st.number}
+                  </span>
                   <div className="hiw-step-icon" aria-hidden="true">
                     {idx === 0 && (
                       <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="1.8" fill="none">

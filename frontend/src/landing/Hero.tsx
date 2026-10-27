@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "../router";
 import { getHealth, getReview } from "../api";
 import type { Health } from "../types";
 import { prefetchChecker } from "../shells/MarketingShell";
 import { Magnet } from "../vendor/reactbits/Magnet";
 import { ShinyText } from "../vendor/reactbits/ShinyText";
+import { initHeroParallax } from "../motion/anime";
 import { HeroDemo } from "./HeroDemo";
 import { LANDING_COPY } from "./copy";
 
@@ -12,6 +13,12 @@ export function Hero() {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [demoReviewAvailable, setDemoReviewAvailable] = useState(false);
+  const heroSectionRef = useRef<HTMLElement>(null);
+  const demoVisualRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    return initHeroParallax(heroSectionRef.current, demoVisualRef.current);
+  }, []);
 
   useEffect(() => {
     getHealth()
@@ -30,7 +37,7 @@ export function Hero() {
   const secondaryHref = demoReviewAvailable ? "/r/demo-critical" : "/check?example=critical";
 
   return (
-    <section className="hero-section hero-full-viewport" aria-label="Introduction">
+    <section ref={heroSectionRef} className="hero-section hero-full-viewport" aria-label="Introduction">
       <div className="hero-grid">
         <div className="hero-copy">
           <div className="hero-eyebrow-container">
@@ -79,7 +86,7 @@ export function Hero() {
           <p className="hero-disclaimer">{LANDING_COPY.hero.quietNote}</p>
         </div>
 
-        <div className="hero-visual" id="hero-demo-visual">
+        <div ref={demoVisualRef} className="hero-visual" id="hero-demo-visual">
           <HeroDemo />
         </div>
       </div>

@@ -1,5 +1,6 @@
-import { CountUp } from "../vendor/reactbits/CountUp";
+import { useEffect, useRef } from "react";
 import { Reveal } from "../motion/Reveal";
+import { animateCounter } from "../motion/anime";
 import benchmarkData from "./benchmark.json";
 
 interface BenchmarkPayload {
@@ -7,6 +8,14 @@ interface BenchmarkPayload {
   total_cases?: number | null;
   date?: string | null;
   engine_version?: string | null;
+}
+
+function BenchmarkCounter({ to }: { to: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    return animateCounter(ref.current, to);
+  }, [to]);
+  return <span ref={ref}>{to}</span>;
 }
 
 export function BenchmarkBand() {
@@ -27,10 +36,10 @@ export function BenchmarkBand() {
         <div className="panel benchmark-card">
           <div className="benchmark-number-row">
             <span className="benchmark-stat">
-              <CountUp to={falseApprovals} />
+              <BenchmarkCounter to={falseApprovals} />
             </span>
             <span className="benchmark-text">
-              false approvals in <CountUp to={totalCases} /> in-house test cases
+              false approvals in <BenchmarkCounter to={totalCases} /> in-house test cases
             </span>
           </div>
 
@@ -49,7 +58,9 @@ export function BenchmarkBand() {
             </a>
           </div>
 
-          <p className="benchmark-disclaimer">This is not an accuracy figure.</p>
+          <p className="benchmark-disclaimer">
+            Evaluation suite tests regression across fixed test cases; not an accuracy figure for general claims.
+          </p>
         </div>
       </Reveal>
     </section>
