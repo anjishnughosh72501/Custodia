@@ -211,12 +211,12 @@ export function Shell({ currentRoute, children, hideFooter }: ShellProps) {
                   <h4>Project</h4>
                   <ul>
                     <li>
-                      <a href="https://github.com/aryankalpeshchavan-glitch/ClaimFit" target="_blank" rel="noopener noreferrer">
+                      <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
                         GitHub repository
                       </a>
                     </li>
                     <li>
-                      <a href="https://github.com/aryankalpeshchavan-glitch/ClaimFit#readme" target="_blank" rel="noopener noreferrer">
+                      <a href="https://github.com/anjishnughosh72501/Custodia#readme" target="_blank" rel="noopener noreferrer">
                         README
                       </a>
                     </li>

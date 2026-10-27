@@ -1,44 +1,151 @@
-# ScopeLock (Round 2 build)
+# ClaimFit / Custodia
 
-Checks whether a marketing claim stays inside the **supplied** evidence. Passing a check never means the claim is objectively true.
+> **Deterministic claim verification for marketing and compliance.**  
+> Checks whether marketing wording stays strictly within the supplied evidence before publication.
 
-Flow: claim + evidence → extract 7 dimensions (metric, value/statistic, unit, population, time window, conditions, strength of wording) → verify every quote against the original text → deterministic rules mark each dimension **supported / contradicted / unknown** → a separate **language-risk** review (tone, absolutes, guarantees, superlatives, comparisons, causal wording, terminology changes, dropped limitations) → verdict → optional narrower rewrite → the rewrite goes through the *same* pipeline. Unclear cases go to a human.
+---
 
-## Run locally
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cd frontend && npm ci && npm run build && cd ..   # builds the React app into app/web
-uvicorn app.main:app --reload                      # http://127.0.0.1:8000  (API + UI, same origin)
-pytest -q                                          # backend tests
-cd frontend && npm test                            # frontend unit tests (highlight offsets)
+## About ClaimFit
+
+ClaimFit (also known as Custodia) is an automated, deterministic verification tool designed for marketing leads, compliance officers, and legal reviewers who must substantiate public claims against backing data (reports, clinical studies, benchmark metrics, or whitepapers).
+
+### The Problem
+Marketing copy frequently stretches the underlying data:
+- An observed 30% reduction in setup time becomes "cuts setup time by 40%".
+- A bounded test of 120 small businesses becomes "for every business".
+- A conditional Pro tier requirement is silently dropped.
+- Retrospective observational findings are turned into future "guarantees".
+
+Typical LLM-based checkers are vulnerable to prompt injection, hallucinations, and non-deterministic judgements.
+
+### Architectural Principles ("Not a vibe check")
+1. **Code decides, not the model**: The model is only used to propose verbatim quote candidates and semantic flags. Deterministic rule-based engines verify character positions against original source text and make all verdict decisions. Prompt injection or hallucinated output can never force an approval.
+2. **Every finding has receipts**: All findings rest on verified character spans and exact quotes in the user's text.
+3. **Unclear goes to human review**: If an extraction cannot be verified with certainty, the claim is withheld and flagged as `Needs human review`—never rubber-stamped.
+4. **"Supported" is not "objectively true"**: A `Supported` verdict only indicates that the draft wording stays within the provided evidence text; ClaimFit does not crawl the web or vouch for the external veracity of the evidence itself.
+
+---
+
+## How It Works
+
+ClaimFit evaluates claims through a multi-stage deterministic pipeline:
+
 ```
-Frontend development with hot reload: run uvicorn on :8000, then `cd frontend && npm run dev` (Vite proxies `/api` to :8000).
-If `app/web` has not been built, `/` returns an explicit 503 notice; the API under `/api` still works.
+[Draft Claim + Evidence Text]
+             │
+             ▼
+   [Extraction Stage]
+  (Rule-based heuristics or LLM quote proposal)
+             │
+             ▼
+   [Span & Verbatim Verification]
+  (Checks every quote exists verbatim in input)
+             │
+             ▼
+   [Seven Dimensions Comparison]
+  1. Metric
+  2. Value / statistic
+  3. Unit
+  4. Population / cohort
+  5. Time window
+  6. Conditions / plan
+  7. Strength of wording
+             │
+             ▼
+   [Language Risk Analysis]
+  (Absolutes, guarantees, superlatives, causal leaps)
+             │
+             ▼
+   [Verdict Decision & Narrower Rewrite]
+  (Supported / Contradicted / Needs human review)
+```
 
-Browser end-to-end checks (needs `pip install playwright && playwright install chromium`, a built frontend, and a running server;
-start it with `SCOPELOCK_RATE_LIMIT_PER_MIN=0` because the suite makes many calls):
+---
+
+## Tech Stack
+
+- **Backend:** Python 3.12+, FastAPI, SQLite (persisting review IDs), Pydantic v2.
+- **Frontend:** React 18, TypeScript, Vite 5, Plain CSS with design tokens (`--ivory`, `--paper`, `--ink`, `--ok`, `--bad`, `--warn`).
+- **Typography:** Fraunces Variable (display serif) & Hanken Grotesk Variable (body sans).
+- **Motion System:** View Transitions API, `IntersectionObserver` scroll reveal, Magnet buttons, Glare hover cards, accessible Count Up, and SVG thread drawing.
+- **Testing:** `pytest` (backend unit & regression), `vitest` (frontend unit), `playwright` (responsive browser e2e).
+
+---
+
+## Local Development
+
+### Prerequisites
+- Python 3.10+
+- Node.js 18+ and `npm`
+
+### 1. Backend Setup
 ```bash
+# Clone the repository
+git clone https://github.com/anjishnughosh72501/Custodia.git
+cd Custodia
+
+# Create and activate virtual environment
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Frontend Setup & Build
+```bash
+cd frontend
+npm ci
+npm run build
+cd ..
+```
+The build outputs to `app/web`, which FastAPI serves statically.
+
+### 3. Run Application
+```bash
+# Start FastAPI server on http://localhost:8000
+python -m uvicorn app.main:app --reload --port 8000
+```
+Open [http://localhost:8000](http://localhost:8000) to view the landing page, or [http://localhost:8000/check](http://localhost:8000/check) for the checker workspace.
+
+---
+
+## Testing
+
+```bash
+# Run backend tests
+python -m pytest -q
+
+# Run frontend unit tests (Vitest)
+cd frontend && npm test -- --run && cd ..
+
+# Run Playwright E2E browser tests (starts against running server)
 python tests/e2e/test_ui.py
 ```
 
-## Environment variables (all optional)
-`ANTHROPIC_API_KEY` (server-side only; without it the app runs on the labelled rule-based extractor) · `SCOPELOCK_MODEL` · `SCOPELOCK_LLM_TIMEOUT` · `SCOPELOCK_DB` · `SCOPELOCK_RATE_LIMIT_PER_MIN` (0 disables) · `SCOPELOCK_LOG_LEVEL` · `SCOPELOCK_WEB_DIR` · `SCOPELOCK_DISABLE_LLM`. See `.env.example`.
+---
 
-## Deploy (Render, Docker)
-The Dockerfile is multi-stage: Node builds the React app, then the Python image serves API and UI from one process. `render.yaml` defines one Docker web service with health check `/api/health`. Create the service from the repo, optionally set `ANTHROPIC_API_KEY`, deploy, then open the public URL and run `docs/QA_SCENARIOS.md`. Not deployed from this session.
+## API Reference
 
-## Architecture
-`app/rules/engine.py` deterministic comparator (no model calls) · `app/extraction/` locators/parsers, rule-based extractor, LLM adapter (proposes verbatim quotes and language flags only) · `app/language/risk.py` language-risk rules with verified spans · `app/service.py` orchestrator + fallback · `app/rewrite.py` constrained rewrite · `app/examples.py` illustrative scenarios (pinned by tests) · `app/main.py` API + serves the built UI · `app/store.py` SQLite · `frontend/` React + TypeScript + Vite (no 3D library: the claim-to-evidence thread is SVG).
+- `POST /api/reviews` — Submit `{ claim_text, evidence_text }` to run the 7-dimension comparison.
+- `GET /api/reviews/{id}` — Retrieve a saved review by ID.
+- `POST /api/reviews/{id}/rewrite` — Request a narrower evidence-based rewrite or verify user edits.
+- `GET /api/health` — Check engine version, LLM configuration status, and character limits.
+- `GET /api/examples` — List teaching scenarios.
 
-The model can only propose verbatim quotes, language flags, or wording. Code verifies every quotation, parses values, compares, and re-verifies every rewrite. Model flags can only add review items; nothing a model returns can approve a claim.
+---
 
-## API
-`POST /api/reviews` `{claim_text, evidence_text}` · `GET /api/reviews/{id}` · `POST /api/reviews/{id}/rewrite` (optional `{candidate_text}` to verify edited wording) · `GET /api/health` · `GET /api/examples`.
-Errors: `{"error":{"code","message"}}` with 400, 413, 415, 422, 429, 404, 500.
+## Known Limits
 
-## Verdicts
-`SUPPORTED_BY_SUPPLIED_EVIDENCE` only if every dimension is supported **and** no language risk needs judgement · any contradicted dimension → `NOT_SUPPORTED` · otherwise `NEEDS_HUMAN_REVIEW`. Approval is also withheld if the model step failed or the input contains instruction-like text. Language risks never produce a "contradicted" status by themselves.
+- **English text only** in the current engine release.
+- **No external source fetching:** ClaimFit evaluates only the text provided in the workspace.
+- **Single primary statistic:** Compares the primary metric per statement; ambiguous multi-statistic evidence is marked for human review.
 
-## Known limits
-English only. Rule-based extraction understands a fixed set of phrasings; unusual wording becomes *unknown*, not *supported*. Language risks come from word lists and a small related-terms table, so they miss rewordings and can flag innocent uses. Only the first number/population per text is compared (several numbers are flagged ambiguous). Evidence without an explicit time window or conditions yields *unknown* for those dimensions even when the claim copies the evidence. The rate limiter keys on the connecting IP (behind a proxy all users may share one bucket). Model-assisted paths are tested only with mocked providers. Example scenarios are illustrative, not a benchmark; no accuracy figure is claimed.
+---
+
+## License
+
+MIT License — Copyright (c) 2026 Anjishnu Ghosh. See [LICENSE](LICENSE) for details.

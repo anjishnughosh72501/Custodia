@@ -40,7 +40,7 @@ export function BenchmarkBand() {
             <span>Engine v{engineVersion}</span>
             <span>·</span>
             <a
-              href="https://github.com/aryankalpeshchavan-glitch/ClaimFit#benchmark"
+              href="https://github.com/anjishnughosh72501/Custodia#readme"
               target="_blank"
               rel="noopener noreferrer"
               className="benchmark-link"
