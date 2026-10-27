@@ -138,6 +138,13 @@ def main() -> int:
         check("7 dimension findings", pg.locator(".finding").count() == 7)
         check("7 rail buttons", pg.locator(".rail button").count() == 7)
 
+        # Ensure all 7 finding rows reach computed opacity 1 within 1.5s
+        pg.wait_for_function("""() => {
+            const findings = Array.from(document.querySelectorAll('.finding'));
+            return findings.length === 7 && findings.every(el => window.getComputedStyle(el).opacity === '1');
+        }""", timeout=1500)
+        check("all seven .finding rows have computed opacity 1 within 1.5 s", True)
+
         # Screenshot desktop checker after critical example
         pg.screenshot(path=str(SCREENSHOTS_DIR / "desktop_checker.png"), full_page=True)
 

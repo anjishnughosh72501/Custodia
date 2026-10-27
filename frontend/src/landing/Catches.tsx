@@ -1,7 +1,6 @@
 import { Link } from "../router";
 import { Reveal } from "../motion/Reveal";
 import { prefetchChecker } from "../Shell";
-import { GlareHover } from "../vendor/reactbits/GlareHover";
 import { LANDING_COPY, type CatchCard } from "./copy";
 
 export function Catches() {
@@ -31,7 +30,7 @@ export function Catches() {
       <div className="catches-bento-grid">
         {LANDING_COPY.catches.cards.map((card: CatchCard, idx: number) => (
           <Reveal key={card.id} staggerIndex={idx} className="catch-card-wrapper">
-            <GlareHover className="panel catch-bento-card">
+            <div className="panel catch-bento-card">
               <div className="catch-card-head">
                 <span className="catch-tag">Scenario #{idx + 1}</span>
                 <h3 className="catch-card-title">{card.title}</h3>
@@ -64,7 +63,7 @@ export function Catches() {
                   Test in checker →
                 </Link>
               </div>
-            </GlareHover>
+            </div>
           </Reveal>
         ))}
       </div>
