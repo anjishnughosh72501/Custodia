@@ -56,6 +56,15 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
     e.preventDefault();
     setMenuOpen(false);
+    if (hash === "product" || hash === "") {
+      if (window.location.pathname === "/" || window.location.pathname === "") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.history.pushState(null, "", "/");
+        return;
+      }
+      navigate("/");
+      return;
+    }
     const el = document.getElementById(hash);
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
@@ -84,19 +93,39 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
           </Link>
 
           <div className="shell-nav-links desktop-only">
-            <a href="#how-it-works" onClick={(e) => handleNavClick(e, "how-it-works")}>
+            <a
+              href="#product"
+              onClick={(e) => handleNavClick(e, "product")}
+              className={typeof window !== "undefined" && window.location.pathname === "/" && (!window.location.hash || window.location.hash === "#product") ? "active" : ""}
+            >
               Product
             </a>
-            <a href="#dimensions" onClick={(e) => handleNavClick(e, "dimensions")}>
+            <a
+              href="#dimensions"
+              onClick={(e) => handleNavClick(e, "dimensions")}
+              className={typeof window !== "undefined" && window.location.hash === "#dimensions" ? "active" : ""}
+            >
               7 Dimensions
             </a>
-            <Link href="/examples" prefetch={prefetchExamples}>
+            <Link
+              href="/examples"
+              prefetch={prefetchExamples}
+              className={typeof window !== "undefined" && window.location.pathname === "/examples" ? "active" : ""}
+            >
               Examples
             </Link>
-            <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
+            <a
+              href="#limits"
+              onClick={(e) => handleNavClick(e, "limits")}
+              className={typeof window !== "undefined" && window.location.hash === "#limits" ? "active" : ""}
+            >
               Limits
             </a>
-            <a href="#faq" onClick={(e) => handleNavClick(e, "faq")}>
+            <a
+              href="#faq"
+              onClick={(e) => handleNavClick(e, "faq")}
+              className={typeof window !== "undefined" && window.location.hash === "#faq" ? "active" : ""}
+            >
               FAQ
             </a>
           </div>
@@ -132,19 +161,40 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
         {menuOpen && (
           <div id="mobile-nav-menu" className="mobile-nav-drawer mobile-only">
             <div className="mobile-nav-items">
-              <a href="#how-it-works" onClick={(e) => handleNavClick(e, "how-it-works")}>
+              <a
+                href="#product"
+                onClick={(e) => handleNavClick(e, "product")}
+                className={typeof window !== "undefined" && window.location.pathname === "/" && (!window.location.hash || window.location.hash === "#product") ? "active" : ""}
+              >
                 Product
               </a>
-              <a href="#dimensions" onClick={(e) => handleNavClick(e, "dimensions")}>
+              <a
+                href="#dimensions"
+                onClick={(e) => handleNavClick(e, "dimensions")}
+                className={typeof window !== "undefined" && window.location.hash === "#dimensions" ? "active" : ""}
+              >
                 7 Dimensions
               </a>
-              <Link href="/examples" onClick={() => setMenuOpen(false)} prefetch={prefetchExamples}>
+              <Link
+                href="/examples"
+                onClick={() => setMenuOpen(false)}
+                prefetch={prefetchExamples}
+                className={typeof window !== "undefined" && window.location.pathname === "/examples" ? "active" : ""}
+              >
                 Examples
               </Link>
-              <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
+              <a
+                href="#limits"
+                onClick={(e) => handleNavClick(e, "limits")}
+                className={typeof window !== "undefined" && window.location.hash === "#limits" ? "active" : ""}
+              >
                 Limits
               </a>
-              <a href="#faq" onClick={(e) => handleNavClick(e, "faq")}>
+              <a
+                href="#faq"
+                onClick={(e) => handleNavClick(e, "faq")}
+                className={typeof window !== "undefined" && window.location.hash === "#faq" ? "active" : ""}
+              >
                 FAQ
               </a>
               <Link

@@ -37,7 +37,7 @@ export function Hero() {
   }, []);
 
   return (
-    <section ref={heroSectionRef} className="hero-section hero-full-viewport" aria-label="Introduction">
+    <section id="product" ref={heroSectionRef} className="hero-section hero-full-viewport" aria-label="Introduction">
       <div className="hero-grid">
         <div className="hero-copy">
           <div className="hero-eyebrow-container">

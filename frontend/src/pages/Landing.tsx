@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MarketingShell } from "../shells/MarketingShell";
 import { Hero } from "../landing/Hero";
 import { TickerRow } from "../landing/TickerRow";
@@ -16,6 +17,23 @@ interface LandingProps {
 }
 
 export default function Landing({ notFound }: LandingProps) {
+  useEffect(() => {
+    const scrollToHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash) {
+        setTimeout(() => {
+          const el = document.getElementById(hash);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+          }
+        }, 60);
+      }
+    };
+    scrollToHash();
+    window.addEventListener("hashchange", scrollToHash);
+    return () => window.removeEventListener("hashchange", scrollToHash);
+  }, []);
+
   return (
     <MarketingShell notFound={notFound}>
       <div className="landing-page-root">

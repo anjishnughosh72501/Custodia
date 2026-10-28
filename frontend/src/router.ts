@@ -55,13 +55,21 @@ export function navigate(to: string, options: { replace?: boolean; scroll?: bool
     if (options.scroll !== false) {
       const hash = to.includes("#") ? to.split("#")[1] : "";
       if (hash) {
-        const el = document.getElementById(hash);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-          return;
+        const scrollToTarget = () => {
+          const el = document.getElementById(hash);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+            return true;
+          }
+          return false;
+        };
+        if (!scrollToTarget()) {
+          setTimeout(scrollToTarget, 50);
+          setTimeout(scrollToTarget, 150);
         }
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       }
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
   });
 }
