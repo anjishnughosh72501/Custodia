@@ -15,10 +15,15 @@ from .rules.engine import ENGINE_VERSION
 from .service import ReviewService
 from .store import Store
 
+def get_env(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Accept CUSTODIA_* first, falling back to legacy SCOPELOCK_*."""
+    return os.getenv(f"CUSTODIA_{key}", os.getenv(f"SCOPELOCK_{key}", default))
+
+
 MAX_CLAIM, MAX_EVIDENCE = 1000, 20000
-WEB = Path(os.getenv("SCOPELOCK_WEB_DIR", str(Path(__file__).parent / "web")))   # built React app (npm run build)
-log = logging.getLogger("scopelock")
-logging.basicConfig(level=os.getenv("SCOPELOCK_LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
+WEB = Path(get_env("WEB_DIR", str(Path(__file__).parent / "web")))   # built React app (npm run build)
+log = logging.getLogger("custodia")
+logging.basicConfig(level=get_env("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 
 class ApiError(Exception):
@@ -30,30 +35,50 @@ class RateLimiter:
     def __init__(self, per_minute: int):
         self.per_minute, self.hits = per_minute, defaultdict(deque)
 
+    def prune(self):
+        now = time.monotonic()
+        dead = [k for k, q in self.hits.items() if not q or now - q[-1] > 60]
+        for k in dead:
+            del self.hits[k]
+
     def check(self, key: str):
         if self.per_minute <= 0:
             return
-        now, q = time.monotonic(), self.hits[key]
+        now = time.monotonic()
+        q = self.hits[key]
         while q and now - q[0] > 60:
             q.popleft()
         if len(q) >= self.per_minute:
             raise ApiError(429, "RATE_LIMITED", "Too many requests. Please wait a moment and try again.")
         q.append(now)
+        if len(self.hits) > 500:
+            self.prune()
 
 
 def build_service_from_env() -> ReviewService:
     key = os.getenv("ANTHROPIC_API_KEY", "").strip()
     llm: Optional[LlmClient] = None
-    if key and os.getenv("SCOPELOCK_DISABLE_LLM") != "1":
-        llm = LlmClient(key, os.getenv("SCOPELOCK_MODEL", "claude-sonnet-5-5"),
-                        timeout=float(os.getenv("SCOPELOCK_LLM_TIMEOUT", "20")))
-    return ReviewService(Store(os.getenv("SCOPELOCK_DB", "scopelock.db")), llm)
+    if key and get_env("DISABLE_LLM") != "1":
+        llm = LlmClient(key, get_env("MODEL", "claude-sonnet-5-5"),
+                        timeout=float(get_env("LLM_TIMEOUT", "20")))
+    return ReviewService(Store(get_env("DB", "scopelock.db")), llm)
 
 
 def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int] = None) -> FastAPI:
     svc = service or build_service_from_env()
-    limiter = RateLimiter(rate_limit if rate_limit is not None else int(os.getenv("SCOPELOCK_RATE_LIMIT_PER_MIN", "40")))
+    limiter = RateLimiter(rate_limit if rate_limit is not None else int(get_env("RATE_LIMIT_PER_MIN", "40")))
     app = FastAPI(title="Custodia", version="0.3.0")
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'"
+        )
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        return response
 
     def err(status, code, message):
         return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
@@ -82,6 +107,11 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
         return body
 
     def client_key(request: Request) -> str:
+        xff = request.headers.get("x-forwarded-for")
+        if xff:
+            first_hop = xff.split(",")[0].strip()
+            if first_hop:
+                return first_hop
         return request.client.host if request.client else "unknown"
 
     @app.get("/api/health")
@@ -136,7 +166,7 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
                 raise ApiError(413, "CLAIM_TOO_LONG", f"Wording is limited to {MAX_CLAIM} characters.")
         return svc.rewrite(r, req.candidate_text)
 
-    web_dir = Path(os.getenv("SCOPELOCK_WEB_DIR", str(Path(__file__).parent / "web")))
+    web_dir = Path(get_env("WEB_DIR", str(Path(__file__).parent / "web")))
     if (web_dir / "index.html").exists():
         if (web_dir / "assets").is_dir():
             app.mount("/assets", StaticFiles(directory=web_dir / "assets"), name="assets")

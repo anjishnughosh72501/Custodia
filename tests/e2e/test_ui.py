@@ -8,7 +8,7 @@ import os, sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-DEFAULT_CHECK_URL = os.getenv("SCOPELOCK_URL", "http://localhost:8000/check")
+DEFAULT_CHECK_URL = os.getenv("CUSTODIA_URL", os.getenv("SCOPELOCK_URL", "http://localhost:8000/check"))
 if not DEFAULT_CHECK_URL.endswith("/check"):
     if DEFAULT_CHECK_URL.endswith("/"):
         DEFAULT_CHECK_URL = DEFAULT_CHECK_URL + "check"
@@ -65,16 +65,19 @@ def main() -> int:
         pg_land.wait_for_selector(".scenarios")
         check("Check a claim button navigates to /check and shows .scenarios", pg_land.locator(".scenarios").count() > 0)
 
-        # "See a live example" check
+        # "Browse examples" check
         pg_land.goto(BASE_URL)
         pg_land.wait_for_selector(".hero-h1")
-        pg_land.click("text=See a live example")
+        pg_land.click("text=Browse examples")
+        pg_land.wait_for_selector(".examples-grid")
+        check("Browse examples button navigates to /examples and shows .examples-grid", pg_land.locator(".examples-grid").count() > 0)
+        pg_land.click(".example-card >> nth=0 >> text=Open in checker")
         pg_land.wait_for_selector(".scenarios")
         # If demo-critical or critical example loaded, wait for verdict if submitted or click check claim
         if pg_land.locator(".verdict").count() == 0:
             pg_land.click("text=Check claim")
             pg_land.wait_for_selector(".verdict")
-        check("See a live example ends on a verdict", pg_land.locator(".verdict").count() > 0)
+        check("Example deep link ends on a verdict", pg_land.locator(".verdict").count() > 0)
         pg_land.close()
 
         # -------------------------------------------------------------
