@@ -1,13 +1,30 @@
 import type { Review } from "./types";
-import { ABSTAIN_LABEL, DIM_LABEL, MODE_LABEL, VERDICT_TITLE, reasonLabel } from "./labels";
+import { ABSTAIN_LABEL, DIM_LABEL, VERDICT_TITLE, reasonLabel } from "./labels";
 import { DIMENSIONS } from "./types";
 import { Icon, statusTone, verdictTone } from "./ui";
+
+const MODE_INFO: Record<string, { label: string; tooltip: string; tone?: "warn" }> = {
+  llm: {
+    label: "Model-assisted",
+    tooltip: "Claude proposes verbatim quotes; deterministic Python code decides the verdict.",
+  },
+  heuristic: {
+    label: "Rule-based",
+    tooltip: "Pure deterministic pattern matching; no LLM was called.",
+  },
+  heuristic_fallback: {
+    label: "Rule-based fallback",
+    tooltip: "Model call timed out or failed; deterministic fallback used.",
+    tone: "warn",
+  },
+};
 
 export function VerdictCard({ review, onPickDimension }: { review: Review; onPickDimension: (d: string) => void }) {
   const v = review.verdict, tone = verdictTone(v.status);
   const open = review.comparisons.filter((c) => c.status !== "supported");
   const byDim = new Map(review.comparisons.map((c) => [c.dimension, c]));
   const risks = review.language_risks.filter((r) => r.severity === "review").length;
+  const modeInfo = MODE_INFO[review.extractor_mode] ?? { label: review.extractor_mode, tooltip: "" };
   return (
     <section className={`panel verdict ${tone}`} aria-labelledby="verdict-title" role="region">
       <div>
@@ -25,7 +42,10 @@ export function VerdictCard({ review, onPickDimension }: { review: Review; onPic
         {v.abstain_reasons.filter((r) => ABSTAIN_LABEL[r]).map((r) => <p key={r} className="note-panel">{ABSTAIN_LABEL[r]}</p>)}
         <p className="scope">Checked only against the evidence you supplied. “Supported” never means the claim is objectively true.</p>
         <div className="meta-line">
-          <span>{MODE_LABEL[review.extractor_mode]}</span><span>Engine {review.engine_version}</span>
+          <span className={`mode-badge ${modeInfo.tone ?? ""}`} title={modeInfo.tooltip}>
+            {modeInfo.label}
+          </span>
+          <span>Engine {review.engine_version}</span>
           <span>{risks > 0 ? `${risks} language risk${risks > 1 ? "s" : ""} to judge` : "No blocking language risks"}</span>
           {review.nli && review.nli.available && (
             <span>Semantic signal: {review.nli.predicted_label}{review.nli.disagreed_with_rules ? " (disagrees with rules)" : ""}</span>

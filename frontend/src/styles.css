@@ -1124,7 +1124,9 @@ html.js .reveal-item.revealed {
 .rail button:hover { transform: scale(1.12); }
 .rail button.ok { border-color: var(--ok); color: var(--ok); } .rail button.bad { border-color: var(--bad); color: var(--bad); background: var(--bad-bg); } .rail button.warn { border-color: var(--warn); color: var(--warn-ink); background: var(--warn-bg); }
 .rail-cap { grid-column: 1 / -1; font-size: 13px; color: var(--ink-3); text-align: center; margin-top: 4px; }
-.meta-line { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-3); font-size: 13.5px; }
+.meta-line { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--ink-3); font-size: 13.5px; align-items: center; }
+.mode-badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: var(--r-sm); font-weight: 600; font-size: 12px; border: 1px solid var(--rule-strong); background: var(--paper); color: var(--ink-2); cursor: help; }
+.mode-badge.warn { border-color: #EBD3A0; background: var(--warn-bg); color: var(--warn-ink); }
 
 /* ---------- inspector ---------- */
 .inspector { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; padding: 18px; }

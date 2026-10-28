@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Review } from "../types";
+import { deleteReview } from "../api";
 import { generateMarkdownReport } from "./report";
 import { CHECKER_COPY } from "./copy.checker";
 
@@ -8,6 +9,7 @@ interface ActionBarProps {
   onToast: (text: string, tone?: "ok" | "warn" | "bad") => void;
   onEditAndRerun: () => void;
   consideredRisks?: Record<string, boolean>;
+  onDeleteReview?: () => void;
   className?: string;
 }
 
@@ -16,13 +18,26 @@ export function ActionBar({
   onToast,
   onEditAndRerun,
   consideredRisks,
+  onDeleteReview,
   className = "",
 }: ActionBarProps) {
   const [canShare, setCanShare] = useState(false);
+  const [hasDeleteToken, setHasDeleteToken] = useState(false);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
   }, []);
+
+  useEffect(() => {
+    if (!review?.id) {
+      setHasDeleteToken(false);
+      return;
+    }
+    const token =
+      review.delete_token ||
+      (typeof localStorage !== "undefined" ? localStorage.getItem(`custodia_delete_${review.id}`) : null);
+    setHasDeleteToken(!!token);
+  }, [review?.id, review?.delete_token]);
 
   const handleCopyLink = async () => {
     try {
@@ -76,6 +91,26 @@ export function ActionBar({
       });
     } catch {
       // ignore user cancel
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!review?.id) return;
+    const token =
+      review.delete_token ||
+      (typeof localStorage !== "undefined" ? localStorage.getItem(`custodia_delete_${review.id}`) : null);
+    if (!token) return;
+    if (!window.confirm("Permanently delete this saved review from the server?")) return;
+
+    try {
+      await deleteReview(review.id, token);
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(`custodia_delete_${review.id}`);
+      }
+      onToast("Review deleted from server", "ok");
+      onDeleteReview?.();
+    } catch {
+      onToast("Could not delete review from server", "bad");
     }
   };
 
@@ -156,6 +191,21 @@ export function ActionBar({
         </svg>
         {CHECKER_COPY.actions.editAndRerun}
       </button>
+
+      {hasDeleteToken && (
+        <button
+          type="button"
+          className="btn small action-btn delete-review-btn"
+          onClick={handleDelete}
+          title="Permanently delete this review from the server"
+          style={{ color: "var(--bad)" }}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M11 1.75V3h2.25a.75.75 0 010 1.5H2.75a.75.75 0 010-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75zM4.496 6.675a.75.75 0 10-1.492.15l.66 6.6a1.75 1.75 0 001.744 1.575h5.184a1.75 1.75 0 001.744-1.575l.66-6.6a.75.75 0 10-1.492-.15L10.834 13.5H5.166L4.496 6.675z" />
+          </svg>
+          Delete
+        </button>
+      )}
     </div>
   );
 }

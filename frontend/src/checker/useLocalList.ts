@@ -9,13 +9,14 @@ export interface LocalReviewItem {
   timestamp: number;
 }
 
-const STORAGE_KEY = "custodia_recent_reviews";
-const MAX_ITEMS = 10;
+const STORAGE_KEY = "custodia_recent_checks";
+const LEGACY_STORAGE_KEY = "custodia_recent_reviews";
+const MAX_ITEMS = 8;
 const MAX_STORED_TEXT_LENGTH = 10000;
 
 export function getStoredReviews(): LocalReviewItem[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -47,7 +48,7 @@ export function useLocalList() {
       try {
         const newItem: LocalReviewItem = {
           id: item.id,
-          claimSnippet: (item.claimSnippet || item.claimFull || "").slice(0, 80),
+          claimSnippet: (item.claimSnippet || item.claimFull || "").slice(0, 60),
           claimFull: (item.claimFull || "").slice(0, MAX_STORED_TEXT_LENGTH),
           evidenceFull: (item.evidenceFull || "").slice(0, MAX_STORED_TEXT_LENGTH),
           verdictStatus: item.verdictStatus,
@@ -67,14 +68,26 @@ export function useLocalList() {
     []
   );
 
+  const removeItem = useCallback((id: string) => {
+    try {
+      const existing = getStoredReviews();
+      const updated = existing.filter((i) => i.id !== id);
+      saveStoredReviews(updated);
+      setItems(updated);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const clearAll = useCallback(() => {
     try {
       localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
     } catch {
       // ignore
     }
     setItems([]);
   }, []);
 
-  return { items, addItem, clearAll };
+  return { items, addItem, removeItem, clearAll };
 }

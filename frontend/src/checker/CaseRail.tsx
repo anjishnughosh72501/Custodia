@@ -13,6 +13,7 @@ interface CaseRailProps {
   onToast: (text: string, tone?: "ok" | "warn" | "bad") => void;
   onEditAndRerun: () => void;
   consideredRisks?: Record<string, boolean>;
+  onDeleteReview?: () => void;
   className?: string;
 }
 
@@ -25,6 +26,7 @@ export function CaseRail({
   onToast,
   onEditAndRerun,
   consideredRisks,
+  onDeleteReview,
   className = "",
 }: CaseRailProps) {
   const verdictTone = VERDICT_TONE[review.verdict.status] ?? "warn";
@@ -111,6 +113,7 @@ export function CaseRail({
           onToast={onToast}
           onEditAndRerun={onEditAndRerun}
           consideredRisks={consideredRisks}
+          onDeleteReview={onDeleteReview}
         />
       </div>
     </aside>

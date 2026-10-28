@@ -44,6 +44,15 @@ export function AppShell({
             <Link href="/examples" className="app-bar-navlink">
               Examples
             </Link>
+            <a
+              href="https://github.com/anjishnughosh72501/Custodia"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="app-bar-navlink"
+              aria-label="GitHub repository (opens in new tab)"
+            >
+              GitHub
+            </a>
           </div>
 
           <div className="app-bar-actions">

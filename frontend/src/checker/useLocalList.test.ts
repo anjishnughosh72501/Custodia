@@ -22,7 +22,7 @@ describe("useLocalList storage operations", () => {
     localStorage.clear();
   });
 
-  it("caps stored reviews at 10 items", () => {
+  it("caps stored reviews at 8 items", () => {
     const items: LocalReviewItem[] = Array.from({ length: 15 }, (_, i) => ({
       id: `rev-${i}`,
       claimSnippet: `Claim ${i}`,
@@ -34,9 +34,9 @@ describe("useLocalList storage operations", () => {
 
     saveStoredReviews(items);
     const loaded = getStoredReviews();
-    expect(loaded.length).toBe(10);
+    expect(loaded.length).toBe(8);
     expect(loaded[0].id).toBe("rev-0");
-    expect(loaded[9].id).toBe("rev-9");
+    expect(loaded[7].id).toBe("rev-7");
   });
 
   it("survives corrupted localStorage without throwing", () => {

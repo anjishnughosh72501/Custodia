@@ -87,7 +87,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const undoDraftRef = useRef<string | null>(null);
 
-  const { addItem } = useLocalList();
+  const { addItem, removeItem } = useLocalList();
 
   const verdictRef = useRef<HTMLDivElement>(null);
   const inspectorRef = useRef<HTMLDivElement>(null);
@@ -386,9 +386,16 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     try {
       const r = await createReview(claim, evidence);
       setReview(r);
+      if (r.id && r.delete_token) {
+        try {
+          localStorage.setItem(`custodia_delete_${r.id}`, r.delete_token);
+        } catch {
+          // ignore
+        }
+      }
       addItem({
         id: r.id,
-        claimSnippet: claim.slice(0, 80),
+        claimSnippet: claim.slice(0, 60),
         claimFull: claim,
         evidenceFull: evidence,
         verdictStatus: r.verdict.status,
@@ -502,6 +509,15 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     );
   };
 
+  const handleDeleteReview = () => {
+    if (review?.id) {
+      removeItem(review.id);
+    }
+    clearResults();
+    navigate("/check");
+    addToast("Review deleted", "ok");
+  };
+
   const copyFullReport = () => {
     if (!review) return;
     copyReportToClipboard(review, consideredRisks).then((ok: boolean) => {
@@ -593,12 +609,22 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
 
               {error && (
                 <div
-                  className={`banner ${error.includes("can't be displayed") ? "warn saved-review-error" : "bad"}`}
+                  className={`banner ${error.includes("could not be found") ? "warn not-found-review" : error.includes("can't be displayed") ? "warn saved-review-error" : "bad"}`}
                   role="alert"
                   style={{ marginTop: 24 }}
                 >
                   <div>
-                    {error.includes("can't be displayed") ? (
+                    {error.includes("could not be found") ? (
+                      <div>
+                        <p style={{ fontWeight: 650, marginBottom: 4 }}>Review not found or expired</p>
+                        <p style={{ fontSize: "0.95em", marginBottom: 12 }}>
+                          This review may have reached its 30-day retention limit, was deleted by its creator, or the link is mistyped.
+                        </p>
+                        <button type="button" className="btn small primary" onClick={reset}>
+                          Start a new check
+                        </button>
+                      </div>
+                    ) : error.includes("can't be displayed") ? (
                       <span>{error}</span>
                     ) : (
                       <>
@@ -733,6 +759,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                     onToast={addToast}
                     onEditAndRerun={handleEditAndRerun}
                     consideredRisks={consideredRisks}
+                    onDeleteReview={handleDeleteReview}
                   />
                 </div>
               )}

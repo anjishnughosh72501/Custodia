@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateMarkdownReport } from "./report";
+import { generateMarkdownReport, downloadReport } from "./report";
 import { HERO_SAMPLE } from "../landing/heroSample";
 import type { Review } from "../types";
 
@@ -67,5 +67,41 @@ describe("Markdown report generation", () => {
 
     // Check mandatory truth disclaimer
     expect(md).toContain("Supported never means true");
+  });
+
+  it("can download report without throwing", () => {
+    let clicked = false;
+    const fakeDoc = {
+      createElement: (_tag: string) => ({
+        href: "",
+        download: "",
+        click: () => { clicked = true; },
+      }),
+      body: {
+        appendChild: () => {},
+        removeChild: () => {},
+      },
+    };
+    const origDoc = globalThis.document;
+    const origBlob = globalThis.Blob;
+    const origURL = globalThis.URL;
+
+    globalThis.document = fakeDoc as any;
+    if (typeof globalThis.Blob === "undefined") {
+      globalThis.Blob = class {} as any;
+    }
+    if (typeof globalThis.URL.createObjectURL === "undefined") {
+      (globalThis.URL as any).createObjectURL = () => "blob:test";
+      (globalThis.URL as any).revokeObjectURL = () => {};
+    }
+
+    try {
+      downloadReport(criticalReview);
+      expect(clicked).toBe(true);
+    } finally {
+      globalThis.document = origDoc;
+      globalThis.Blob = origBlob;
+      globalThis.URL = origURL;
+    }
   });
 });
