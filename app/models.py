@@ -126,6 +126,7 @@ class Review(BaseModel):
     verdict: Verdict
     rewrite: Optional[RewriteResult] = None
     nli: Optional[NliDiagnostic] = None
+    delete_token: Optional[str] = None
 
 
 class ReviewRequest(BaseModel):

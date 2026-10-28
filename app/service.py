@@ -1,6 +1,11 @@
 """Review orchestrator. Wires extraction (AI or heuristic) to the deterministic engine and re-verifies rewrites."""
 from __future__ import annotations
-import logging, uuid
+import concurrent.futures
+import logging
+import os
+import secrets
+import time
+import uuid
 from typing import Optional
 from .extraction.heuristic import HeuristicExtractor
 from .extraction.llm import ExtractionError, LlmClient, LlmExtractor, ProviderError
@@ -10,16 +15,26 @@ from .models import Frame, NliDiagnostic, Review, RewriteResult, Verdict, Verdic
 from .language.risk import analyze_language, verified_model_risks
 from .rewrite import build_template, evidence_sentence
 from .rules.engine import ENGINE_VERSION, compare_frames, decide
-from .store import Store
+from .store import BaseStore, Store
 
 log = logging.getLogger("custodia")
 
 
 class ReviewService:
-    def __init__(self, store: Store, llm: Optional[LlmClient] = None, nli: Optional[NliClassifier] = None):
+    def __init__(
+        self,
+        store: BaseStore,
+        llm: Optional[LlmClient] = None,
+        nli: Optional[NliClassifier] = None,
+        llm_budget_seconds: float = 12.0,
+        retention_days: int = 30,
+    ):
         self.store, self.llm, self.nli = store, llm, nli
         self.heuristic = HeuristicExtractor()
         self.llm_extractor = LlmExtractor(llm) if llm else None
+        self.llm_budget_seconds = llm_budget_seconds
+        self.retention_days = retention_days
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=3)
 
     @property
     def configured_mode(self) -> str:
@@ -174,41 +189,102 @@ class ReviewService:
 
     def review(self, claim_text: str, evidence_text: str) -> Review:
         warnings: list[str] = []
-        ef, f1 = self._extract(evidence_text, "evidence", warnings)
-        cf, f2 = self._extract(claim_text, "claim", warnings)
-        degraded = f1 or f2
+        delete_token = secrets.token_urlsafe(16)
         injection = instruction_like(evidence_text) or instruction_like(claim_text)
         if injection:
             warnings.append("Instruction-like text was found in the input. It was treated as data only; approval is withheld.")
         if not self.llm:
             warnings.append("Running with the rule-based extractor (no model key configured). Unusual phrasing may be marked unknown.")
+
+        ef, f1 = None, False
+        cf, f2 = None, False
+        flags = None
+        language_review = "rules"
+
+        if self.llm_extractor:
+            t_start = time.monotonic()
+            budget = self.llm_budget_seconds
+
+            f_ev = self._executor.submit(self.llm_extractor.extract, evidence_text, "evidence")
+            f_cl = self._executor.submit(self.llm_extractor.extract, claim_text, "claim")
+            f_flags = self._executor.submit(self.llm.propose_language_flags, claim_text, evidence_text)
+
+            # Evidence extraction
+            rem_ev = max(0.01, budget - (time.monotonic() - t_start))
+            try:
+                ef = f_ev.result(timeout=rem_ev)
+            except concurrent.futures.TimeoutError:
+                warnings.append("Model unavailable for evidence extraction (budget exceeded); used the rule-based fallback extractor.")
+                ef, f1 = self.heuristic.extract(evidence_text, "evidence"), True
+            except ProviderError as ex:
+                warnings.append(f"Model unavailable for evidence extraction ({ex.code}); used the rule-based fallback extractor.")
+                ef, f1 = self.heuristic.extract(evidence_text, "evidence"), True
+            except ExtractionError as ex:
+                warnings.append(f"Model output rejected for evidence extraction ({ex}); used the rule-based fallback extractor.")
+                ef, f1 = self.heuristic.extract(evidence_text, "evidence"), True
+
+            # Claim extraction
+            rem_cl = max(0.01, budget - (time.monotonic() - t_start))
+            try:
+                cf = f_cl.result(timeout=rem_cl)
+            except concurrent.futures.TimeoutError:
+                warnings.append("Model unavailable for claim extraction (budget exceeded); used the rule-based fallback extractor.")
+                cf, f2 = self.heuristic.extract(claim_text, "claim"), True
+            except ProviderError as ex:
+                warnings.append(f"Model unavailable for claim extraction ({ex.code}); used the rule-based fallback extractor.")
+                cf, f2 = self.heuristic.extract(claim_text, "claim"), True
+            except ExtractionError as ex:
+                warnings.append(f"Model output rejected for claim extraction ({ex}); used the rule-based fallback extractor.")
+                cf, f2 = self.heuristic.extract(claim_text, "claim"), True
+
+            degraded = f1 or f2
+
+            # Model language flags (only evaluated if neither extraction degraded!)
+            rem_fl = max(0.01, budget - (time.monotonic() - t_start))
+            if not degraded:
+                try:
+                    flags = f_flags.result(timeout=rem_fl)
+                except concurrent.futures.TimeoutError:
+                    warnings.append("Model language review unavailable (budget exceeded); rule-based language checks only.")
+                    language_review = "rules (model unavailable)"
+                except (ProviderError, ExtractionError) as ex:
+                    warnings.append(f"Model language review unavailable ({getattr(ex, 'code', 'invalid output')}); rule-based language checks only.")
+                    language_review = "rules (model unavailable)"
+            else:
+                f_flags.cancel()
+
+        else:
+            ef, f1 = self.heuristic.extract(evidence_text, "evidence"), False
+            cf, f2 = self.heuristic.extract(claim_text, "claim"), False
+            degraded = False
+
         comparisons = compare_frames(cf, ef)
         risks = analyze_language(claim_text, evidence_text, claim_frame=cf)
-        language_review = "rules"
-        if self.llm and not degraded:
-            try:
-                flags = self.llm.propose_language_flags(claim_text, evidence_text)
-                extra, dropped = verified_model_risks(claim_text, evidence_text, flags)
-                risks += extra
-                language_review = "rules+model"
-                if dropped:
-                    warnings.append(f"{dropped} model language flag(s) were discarded because their quotations were not found verbatim in your text.")
-            except (ProviderError, ExtractionError) as ex:
-                warnings.append(f"Model language review unavailable ({getattr(ex, 'code', 'invalid output')}); rule-based language checks only.")
-                language_review = "rules (model unavailable)"
+
+        if flags is not None and not degraded:
+            extra, dropped = verified_model_risks(claim_text, evidence_text, flags)
+            risks += extra
+            language_review = "rules+model"
+            if dropped:
+                warnings.append(f"{dropped} model language flag(s) were discarded because their quotations were not found verbatim in your text.")
+
         verdict = decide(comparisons, degraded=degraded, injection=injection, language_risks=risks)
         nli_diag = self._evaluate_nli(claim_text, evidence_text, verdict, warnings)
         review = Review(id=uuid.uuid4().hex[:12], engine_version=ENGINE_VERSION,
                         extractor_mode="heuristic_fallback" if degraded else self.configured_mode,
                         degraded=degraded, warnings=warnings, claim_text=claim_text, evidence_text=evidence_text,
                         claim_frame=cf, evidence_frame=ef, comparisons=comparisons, language_risks=risks,
-                        language_review=language_review, verdict=verdict, nli=nli_diag)
-        self.store.save(review)
+                        language_review=language_review, verdict=verdict, nli=nli_diag, delete_token=delete_token)
+        self.store.save(review, delete_token=delete_token, retention_days=self.retention_days)
         # Log metadata only: never the claim or evidence text.
         log.info("review id=%s verdict=%s mode=%s degraded=%s claim_chars=%d evidence_chars=%d risks=%d nli=%s",
                  review.id, verdict.status.value, review.extractor_mode, degraded, len(claim_text), len(evidence_text),
                  len(risks), nli_diag.predicted_label if nli_diag and nli_diag.available else "none")
         return review
+
+    def delete_review(self, review_id: str, delete_token: str) -> tuple[bool, str]:
+        """Deletes a review if delete_token matches. Returns (success, reason)."""
+        return self.store.delete(review_id, delete_token)
 
     def _verify(self, review: Review, text: str, source: str, notes: list[str]) -> RewriteResult:
         """Every rewrite or edit goes through the SAME pipeline as an original claim; nothing is inherited."""

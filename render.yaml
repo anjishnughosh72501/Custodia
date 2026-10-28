@@ -1,15 +1,28 @@
-# Render blueprint (one web service).
-# Build: the Dockerfile compiles the React app (stage 1) and serves it from FastAPI (stage 2).
+# Render blueprint for Custodia API (FastAPI backend).
+# Note: Render free tier services sleep after 15 minutes of inactivity and spin down.
+# Free instances use ephemeral storage; configure DATABASE_URL (Neon PostgreSQL) for persistent reviews.
 services:
   - type: web
     name: custodia-api
     runtime: docker
     plan: free
-    healthCheckPath: /api/health
+    healthCheckPath: /api/ping
     envVars:
       - key: ANTHROPIC_API_KEY
-        sync: false        # optional: leave unset to run on the rule-based extractor
-      - key: CUSTODIA_MODEL
+        sync: false        # Optional: leave unset to run on deterministic heuristic extractor
+      - key: CUSTODIA_MODEL_EXTRACT
+        value: claude-haiku-5-5
+      - key: CUSTODIA_MODEL_FLAGS
+        value: claude-haiku-5-5
+      - key: CUSTODIA_MODEL_REWRITE
         value: claude-sonnet-5-5
+      - key: CUSTODIA_LLM_DAILY_CALL_CAP
+        value: "500"
+      - key: CUSTODIA_RETENTION_DAYS
+        value: "30"
+      - key: CUSTODIA_CORS_ORIGINS
+        sync: false        # Set to your Vercel URL, e.g. https://<app>.vercel.app
+      - key: DATABASE_URL
+        sync: false        # Optional Neon Postgres connection string for persistent retention
       - key: CUSTODIA_NLI_ENABLED
-        value: "0"         # set to "1" to enable local quantized NLI inference
+        value: "0"         # Set to "1" to enable local quantized INT8 ONNX NLI inference
