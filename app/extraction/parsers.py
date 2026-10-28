@@ -10,13 +10,44 @@ GROUPS = (r"(?:customers?|users?|businesses|business|compan(?:y|ies)|participant
 GENERIC = {"our", "the", "a", "an", "of", "and", "in", "for", "with", "to", "by", "on", "using",
            "plan", "tier", "median", "mean", "average", "avg", "maximum", "minimum", "typical", "overall"}
 
-PCT_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)\s*(%|percentage\s+points?|percent\b|pp\b)", I)
-TIMEVAL_RE = re.compile(r"\bby\s+(\d+(?:\.\d+)?)\s*(seconds?|minutes?|hours?|days?|weeks?)\b", I)
+UNICODE_MAP = {
+    '\u2011': '-', '\u2012': '-', '\u2013': '-', '\u2014': '-', '\u2212': '-',
+    '\u00a0': ' ', '\u2009': ' ', '\u202f': ' ',
+    '\u2018': "'", '\u2019': "'", '\u201a': "'", '\u201b': "'",
+    '\u201c': '"', '\u201d': '"', '\u201e': '"', '\u201f': '"',
+}
+
+
+def normalize_chars(s: str) -> str:
+    """Length-preserving 1:1 character normalization before parsing so offsets remain exact."""
+    if not s:
+        return ""
+    return "".join(UNICODE_MAP.get(c, c) for c in s)
+
+
+ONES = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+    "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+    "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
+}
+TENS = {
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+}
+NUM_WORD_PATTERN = (
+    r"(?:(?:one\s+)?hundred|"
+    r"(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[\s-](?:one|two|three|four|five|six|seven|eight|nine))?|"
+    r"nineteen|eighteen|seventeen|sixteen|fifteen|fourteen|thirteen|twelve|eleven|ten|"
+    r"nine|eight|seven|six|five|four|three|two|one)"
+)
+NUM_RE_STR = rf"(?:\d+(?:\.\d+)?|{NUM_WORD_PATTERN})"
+
+PCT_RE = re.compile(rf"(?<![\w.])({NUM_RE_STR})\s*(%|percentage\s+points?|percent\b|pp\b)", I)
+TIMEVAL_RE = re.compile(rf"\bby\s+({NUM_RE_STR})\s*(seconds?|minutes?|hours?|days?|weeks?)\b", I)
 METRIC_RE = re.compile(r"\b((?:[a-z]+[ -]){0,1}?(?:time|rate|costs?|revenue|errors?|churn|conversion|retention|"
                        r"latency|speed|sales|savings|score|downtime|tickets|spend|productivity))\b", I)
-TW_RE = re.compile(r"(?<!by )(?<![\w.])(\d+)[\s-]*(day|week|month|year)s?(?:[\s-]+(?:test|trial|study|pilot|period|window))?\b", I)
+TW_RE = re.compile(rf"(?<!by )(?<![\w.])({NUM_RE_STR})[\s-]*(day|week|month|year)s?(?:[\s-]+(?:test|trial|study|pilot|period|window))?\b", I)
 _NOT_A_VALUE = r"(?!\d|\s*(?:%|percent|percentage|pp\b|(?:second|minute|hour|day|week|month|year)s?\b))"
-BOUNDED_RE = re.compile(rf"\b(?:of|among|across|from|for|to|by|with)\s+((?:\d[\d,]*{_NOT_A_VALUE}\s+)?(?:[A-Za-z][\w\-]*\s+){{0,3}}?{GROUPS})\b", I)
+BOUNDED_RE = re.compile(rf"\b(?:of|among|across|from|for|to|by|with)\s+(((?:\d[\d,]*|{NUM_WORD_PATTERN}){_NOT_A_VALUE}\s+)?(?:[A-Za-z][\w\-]*\s+){{0,3}}?{GROUPS})\b", I)
 UNIV_POP_RE = re.compile(rf"\b(?:(every|all|any|each)\s+((?:[a-z\-]+\s+){{0,2}}?{GROUPS})|(everyone|everybody))\b", I)
 COND_RE = re.compile(r"\b(?:using|on|with|under|via)\s+(?:the\s+)?(?:[A-Z][\w\-]*)(?:\s+[A-Z][\w\-]*){0,2}(?:\s+(?:plan|tier|edition|version|mode))?\b")
 UNIV_RE = re.compile(r"\b(every|all|always|never|everyone|everybody|any|each|guarantee[sd]?|without exception)\b", I)
@@ -79,45 +110,63 @@ def norm_unit(s: Optional[str]) -> Optional[str]:
 
 def quantifier_before(prefix: str) -> tuple[Optional[str], Optional[str]]:
     """(kind, raw) if the number is preceded by a bound/approximation word such as 'up to' or 'at least'."""
-    m = QUANT_RE.search(prefix[-25:])
+    norm = normalize_chars(prefix)
+    m = QUANT_RE.search(norm[-25:])
     if not m:
         return None, None
     raw = re.sub(r"\s+", " ", m.group(1).lower())
     return QUANT_KIND.get(raw, "approximate"), raw
 
 
+def parse_num_word(s: str) -> Optional[float]:
+    s = s.strip().lower()
+    if s in ONES:
+        return float(ONES[s])
+    if s in TENS:
+        return float(TENS[s])
+    if s in ("hundred", "one hundred"):
+        return 100.0
+    parts = re.split(r"[\s-]+", s)
+    if len(parts) == 2 and parts[0] in TENS and parts[1] in ONES:
+        return float(TENS[parts[0]] + ONES[parts[1]])
+    return None
+
+
 def to_number(s: str) -> Optional[float]:
     m = re.search(r"\d[\d,]*(?:\.\d+)?", s or "")
-    return float(m.group(0).replace(",", "")) if m else None
+    if m:
+        return float(m.group(0).replace(",", ""))
+    return parse_num_word(s or "")
 
 
 # ---------------- heuristic locators: return (start, end) spans in the original text ----------------
 def locate_all(text: str) -> dict:
     """Return {dimension: (start,end) | None} plus 'strength_level'. Pure regex; used as a labeled fallback extractor."""
     loc: dict = {k: None for k in ("metric", "value", "unit", "population", "time_window", "conditions", "strength")}
-    m = PCT_RE.search(text)
+    norm = normalize_chars(text)
+    m = PCT_RE.search(norm)
     if m:
         loc["value"] = (m.start(1), m.end(1))
         loc["unit"] = (m.start(2), m.end(2))
     else:
-        m = TIMEVAL_RE.search(text)
+        m = TIMEVAL_RE.search(norm)
         if m:
             loc["value"] = (m.start(1), m.end(1))
             loc["unit"] = (m.start(2), m.end(2))
-    m = METRIC_RE.search(text)
+    m = METRIC_RE.search(norm)
     if m:
         loc["metric"] = (m.start(1), m.end(1))
-    m = TW_RE.search(text)
+    m = TW_RE.search(norm)
     if m:
         loc["time_window"] = (m.start(), m.end())
-    m = UNIV_POP_RE.search(text)
+    m = UNIV_POP_RE.search(norm)
     if m:
         loc["population"] = (m.start(), m.end())
     else:
-        m = BOUNDED_RE.search(text)
+        m = BOUNDED_RE.search(norm)
         if m:
             loc["population"] = (m.start(1), m.end(1))
-    m = COND_RE.search(text)
+    m = COND_RE.search(norm)
     if m:
         loc["conditions"] = (m.start(), m.end())
     return loc
@@ -125,15 +174,16 @@ def locate_all(text: str) -> dict:
 
 def strength_level(text: str, role: str) -> tuple[Optional[str], Optional[tuple[int, int]]]:
     """Deterministic strength-of-wording classifier. Returns (level, span)."""
+    norm = normalize_chars(text)
     if role == "claim":
-        for m in UNIV_RE.finditer(text):
+        for m in UNIV_RE.finditer(norm):
             return "universal", (m.start(), m.end())
-        m = SUPER_RE.search(text)
+        m = SUPER_RE.search(norm)
         if m:
             return "superlative", (m.start(), m.end())
-    g = GENERAL_RE.search(text)
-    p = PAST_RE.search(text)
-    t = TEST_RE.search(text)
+    g = GENERAL_RE.search(norm)
+    p = PAST_RE.search(norm)
+    t = TEST_RE.search(norm)
     if role == "claim":
         if g and not p:
             return "generalized", (g.start(), g.end())
@@ -148,39 +198,46 @@ def strength_level(text: str, role: str) -> tuple[Optional[str], Optional[tuple[
 
 
 def instruction_like(text: str) -> bool:
-    return bool(INJECTION_RE.search(text or ""))
+    norm = normalize_chars(text or "")
+    return bool(INJECTION_RE.search(norm))
 
 
 # ---------------- parsers: turn a verified quote into structured data ----------------
 def parse_dimension(dim: str, quote: str, full_text: str, role: str, level: Optional[str] = None) -> dict:
+    norm_full = normalize_chars(full_text)
+    norm_quote = normalize_chars(quote)
     if dim == "metric":
         toks = tokens(quote)
         return {"tokens": toks, "canonical": " ".join(toks)}
     if dim == "value":
         num = to_number(quote)
-        dec, inc = bool(DEC_RE.search(full_text)), bool(INC_RE.search(full_text))
+        dec, inc = bool(DEC_RE.search(norm_full)), bool(INC_RE.search(norm_full))
         direction = "decrease" if dec and not inc else "increase" if inc and not dec else None
-        negated = bool(NEG_DIR_RE.search(full_text))
-        sm = STAT_RE.search(full_text)
-        cands = {m.group(1) for m in PCT_RE.finditer(full_text)} | {m.group(1) for m in TIMEVAL_RE.finditer(full_text)}
+        negated = bool(NEG_DIR_RE.search(norm_full))
+        sm = STAT_RE.search(norm_full)
+        cands = {m.group(1) for m in PCT_RE.finditer(norm_full)} | {m.group(1) for m in TIMEVAL_RE.finditer(norm_full)}
         return {"number": num, "direction": direction, "negated": negated,
-                "valence_only": direction is None and bool(VALENCE_RE.search(full_text)),
+                "valence_only": direction is None and bool(VALENCE_RE.search(norm_full)),
                 "statistic": STAT_NORM.get(sm.group(1).lower()) if sm else None,
                 "statistic_raw": sm.group(1).lower() if sm else None,
                 "candidates": len(cands)}
     if dim == "unit":
         return {"unit": norm_unit(quote), "unit_raw": quote.strip()}
     if dim == "population":
-        um = UNIV_POP_RE.search(quote)
+        um = UNIV_POP_RE.search(norm_quote)
         if um:
             return {"scope": "universal", "tokens": [], "n": None}
-        n = to_number(quote) if re.search(r"\d", quote) else None
+        has_num = bool(re.search(r"\d", norm_quote) or parse_num_word(norm_quote))
+        n = to_number(quote) if has_num else None
         return {"scope": "bounded", "tokens": tokens(quote), "n": n}
     if dim == "time_window":
-        m = TW_RE.search(quote) or re.search(r"(\d+)[\s-]*(day|week|month|year)", quote, I)
+        m = TW_RE.search(norm_quote) or re.search(rf"({NUM_RE_STR})[\s-]*(day|week|month|year)", norm_quote, I)
         if not m:
             return {}
-        return {"n": float(m.group(1)), "unit": m.group(2).lower()}
+        n = to_number(m.group(1))
+        if n is None:
+            return {}
+        return {"n": n, "unit": m.group(2).lower()}
     if dim == "conditions":
         m = COND_RE.search(quote)
         base = m.group(0) if m else quote

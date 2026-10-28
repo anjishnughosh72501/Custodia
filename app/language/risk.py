@@ -10,7 +10,8 @@ and a listed word used innocently can be flagged. That is why unresolved items g
 from __future__ import annotations
 import re
 from typing import Optional
-from ..models import LanguageRisk, Span
+from ..models import Frame, LanguageRisk, Span
+from ..extraction.parsers import GROUP_NOUNS, normalize_chars, singular
 
 I = re.IGNORECASE
 
@@ -38,10 +39,15 @@ RULES: list[tuple] = [
      "Words like “{q}” state that something holds without exception. A test of a sample cannot establish that.",
      "Supply evidence that covers every case, or limit the wording to the group, period and conditions that were actually tested."),
     ("GUARANTEE", "review",
-     re.compile(r"\b(guarantee[sd]?|guaranteed|promise[sd]?|assured|risk[- ]free|foolproof|fail[- ]safe|no\s+risk|ensures?)\b", I),
+     re.compile(r"\b(guarantee[sd]?|guaranteeing|guaranteed|promise[sd]?|promising|assured|assuring|risk[- ]free|foolproof|fail[- ]safe|no\s+risk|ensures?|ensuring)\b", I),
      "Guarantee-like wording",
      "“{q}” turns an observed result into a promise about future or other cases.",
      "Describe what was observed (for example “fell by 30% in the test”), or provide a warranty or contractual basis."),
+    ("PROMISE", "review",
+     re.compile(r"\b(you\s+will|you'll|your\s+team\s+will|you\s+can\s+expect|you\s+shall)\b", I),
+     "Second-person promise",
+     "“{q}” turns past observations into a promise to the reader.",
+     "State what was observed in the test rather than predicting the reader's results."),
     ("SUPERLATIVE", "review",
      re.compile(r"(?:\b(best|fastest|cheapest|easiest|simplest|smartest|greatest|leading|top[- ]rated|unmatched|unrivall?ed|world[- ]class|industry[- ]leading|market[- ]leading|number\s+one|only)\b|#\s*1\b)", I),
      "Unsupported superlative",
@@ -53,7 +59,7 @@ RULES: list[tuple] = [
      "“{q}” compares against something the evidence does not measure.",
      "Provide evidence for both sides of the comparison under the same conditions, or remove the comparison."),
     ("CAUSAL", "review",
-     re.compile(r"\b(caused?|causes|because\s+of|thanks\s+to|due\s+to|resulted\s+in|results\s+in|led\s+to|leads\s+to|drove|drives|responsible\s+for|is\s+why|proves?|proved|proven\s+to)\b", I),
+     re.compile(r"\b(caused?|causes|causing|because(?:\s+of)?|as\s+a\s+result\s+of|thanks\s+to|due\s+to|resulted\s+in|results\s+in|resulting\s+in|led\s+to|leads\s+to|leading\s+to|drove|drives|driving|responsible\s+for|is\s+why|proves?|proved|proving|proven(?:\s+to)?|showing\s+that(?:\s+our)?|guaranteeing|ensuring|making)\b", I),
      "Causal wording",
      "“{q}” asserts that one thing produced another. A before/after observation in a test does not by itself show cause.",
      "Provide a controlled comparison or other causal evidence, or use observational wording such as “was associated with” or “fell by”."),
@@ -102,7 +108,29 @@ def _norm(q: str) -> str:
     return re.sub(r"[\s\-]+", " ", q.lower()).strip()
 
 
-def analyze_language(claim: str, evidence: str) -> list[LanguageRisk]:
+CLAUSE_SPLIT_RE = re.compile(r"[,;!?\n\r]+|\b(?:and|which|so)\b", I)
+
+STOPWORDS = {
+    "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are", "aren't",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
+    "can", "can't", "cannot", "could", "couldn't", "did", "didn't", "do", "does", "doesn't", "doing",
+    "don't", "down", "during", "each", "few", "for", "from", "further", "had", "hadn't", "has", "hasn't",
+    "have", "haven't", "having", "he", "he'd", "he'll", "he's", "her", "here", "here's", "hers",
+    "herself", "him", "himself", "his", "how", "how's", "i", "i'd", "i'll", "i'm", "i've", "if", "in",
+    "into", "is", "isn't", "it", "it's", "its", "itself", "let's", "me", "more", "most", "mustn't", "my",
+    "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "ought", "our",
+    "ours", "ourselves", "out", "over", "own", "same", "shan't", "she", "she'd", "she'll", "she's",
+    "should", "shouldn't", "so", "some", "such", "than", "that", "that's", "the", "their", "theirs",
+    "them", "themselves", "then", "there", "there's", "these", "they", "they'd", "they'll", "they're",
+    "they've", "this", "those", "through", "to", "too", "under", "until", "up", "very", "was", "wasn't",
+    "we", "we'd", "we'll", "we're", "we've", "were", "weren't", "what", "what's", "when", "when's",
+    "where", "where's", "which", "while", "who", "who's", "whom", "why", "why's", "with", "won't",
+    "would", "wouldn't", "you", "you'd", "you'll", "you're", "you've", "your", "yours", "yourself",
+    "yourselves", "also", "us"
+}
+
+
+def analyze_language(claim: str, evidence: str, claim_frame: Optional[Frame] = None) -> list[LanguageRisk]:
     risks: list[LanguageRisk] = []
     seen: set[tuple[str, int]] = set()
     ev_norm = _norm(evidence)
@@ -149,6 +177,65 @@ def analyze_language(claim: str, evidence: str) -> list[LanguageRisk]:
             explanation=f"The draft says “{cm.group(0)}” where the evidence says “{em.group(0)}” ({label}). These are related but not necessarily the same thing.",
             resolution=f"Use the evidence’s term, or show that “{cm.group(0)}” and “{em.group(0)}” are measured the same way.",
             claim_span=_span(claim, cm), evidence_span=_span(evidence, em)))
+
+    # Residue check: mask recognized dimension spans and flag unsupported assertions
+    norm_c = normalize_chars(claim)
+    norm_e = normalize_chars(evidence)
+    ev_tokens = {w.lower() for w in re.findall(r"\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?\b", norm_e)}
+
+    if claim_frame is None:
+        from ..extraction.heuristic import HeuristicExtractor
+        claim_frame = HeuristicExtractor().extract(claim, "claim")
+
+    dim_spans: list[tuple[int, int]] = []
+    if claim_frame and claim_frame.dimensions:
+        for d in claim_frame.dimensions.values():
+            if d.span and d.span.start is not None and d.span.end is not None:
+                dim_spans.append((d.span.start, d.span.end))
+    for r in risks:
+        if r.claim_span:
+            dim_spans.append((r.claim_span.start, r.claim_span.end))
+
+    delims = [(0, 0)] + [(m.start(), m.end()) for m in CLAUSE_SPLIT_RE.finditer(norm_c)] + [(len(norm_c), len(norm_c))]
+    for i in range(len(delims) - 1):
+        c_start, c_end = delims[i][1], delims[i + 1][0]
+        if c_start >= c_end:
+            continue
+        raw_slice = claim[c_start:c_end]
+        l_trim = len(raw_slice) - len(raw_slice.lstrip(" \t\n\r,;!?."))
+        r_trim = len(raw_slice) - len(raw_slice.rstrip(" \t\n\r,;!?."))
+        s_idx = c_start + l_trim
+        e_idx = c_end - r_trim
+        if s_idx >= e_idx:
+            continue
+
+        unmasked_chars = [
+            claim[k] if not any(ds <= k < de for ds, de in dim_spans) else " "
+            for k in range(s_idx, e_idx)
+        ]
+        unmasked_text = "".join(unmasked_chars)
+        words = re.findall(r"\b[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?\b", normalize_chars(unmasked_text))
+        content_words = [w.lower() for w in words if w.lower() not in STOPWORDS]
+        if len(content_words) >= 2:
+            unverified = [w for w in content_words if w not in ev_tokens]
+            assertion_words = [w for w in content_words if singular(w) not in GROUP_NOUNS]
+            unverified_assertions = [w for w in assertion_words if w not in ev_tokens]
+            if (
+                len(unverified) == len(content_words)
+                or (len(assertion_words) > 0 and len(unverified_assertions) == len(assertion_words))
+                or (len(unverified) >= 1 and any(singular(w) in GROUP_NOUNS for w in content_words))
+                or len(unverified) >= 2
+            ):
+                q = claim[s_idx:e_idx]
+                risks.append(LanguageRisk(
+                    category="UNVERIFIED_ASSERTION",
+                    severity="review",
+                    title="Unverified assertion not in evidence",
+                    explanation=f"“{q}” makes assertions that are not found in the supplied evidence.",
+                    resolution="Provide evidence that directly supports this statement, or remove it from the claim.",
+                    claim_span=Span(start=s_idx, end=e_idx, quote=q)
+                ))
+
     risks.sort(key=lambda r: (r.claim_span.start if r.claim_span else 10**9, r.category))
     return risks
 

@@ -47,7 +47,7 @@ class ReviewService:
         if not self.llm:
             warnings.append("Running with the rule-based extractor (no model key configured). Unusual phrasing may be marked unknown.")
         comparisons = compare_frames(cf, ef)
-        risks = analyze_language(claim_text, evidence_text)
+        risks = analyze_language(claim_text, evidence_text, claim_frame=cf)
         language_review = "rules"
         if self.llm and not degraded:
             try:
@@ -77,7 +77,7 @@ class ReviewService:
         warnings: list[str] = []
         frame, fell_back = self._extract(text, "claim", warnings)
         cmps = compare_frames(frame, review.evidence_frame)
-        risks = analyze_language(text, review.evidence_text)
+        risks = analyze_language(text, review.evidence_text, claim_frame=frame)
         injection = instruction_like(review.evidence_text) or instruction_like(text)
         verdict = decide(cmps, degraded=review.degraded or fell_back, injection=injection, language_risks=risks)
         ok = verdict.status.value == "SUPPORTED_BY_SUPPLIED_EVIDENCE"
