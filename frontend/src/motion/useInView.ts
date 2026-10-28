@@ -33,6 +33,29 @@ export function useInView(
 
     let unmounted = false;
 
+    // Fallback 1: if element is already in viewport on mount, reveal immediately
+    try {
+      const rect = element.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        setInView(true);
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback 2: auto-reveal after 1200ms in case observer is throttled or does not fire
+    const fallbackTimer = setTimeout(() => {
+      if (!unmounted) setInView(true);
+    }, 1200);
+
+    // Fallback 3: visibility change or print
+    const onVisibility = () => {
+      if (!unmounted && document.visibilityState === "visible") {
+        setInView(true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -53,6 +76,8 @@ export function useInView(
 
     return () => {
       unmounted = true;
+      clearTimeout(fallbackTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
       observer.disconnect();
     };
   }, [ref, threshold, rootMargin, triggerOnce]);

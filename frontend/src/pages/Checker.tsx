@@ -23,6 +23,7 @@ import { copyReportToClipboard } from "../checker/report";
 import { FitRing, FitRingSkeleton } from "../checker/FitRing";
 import { VERDICT_TITLE } from "../labels";
 import { DIMENSIONS, type Example, type Health, type Review, type RewriteResult } from "../types";
+import STATIC_EXAMPLES from "../examples.generated.json";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -59,12 +60,14 @@ export function VerdictSkeleton() {
 
 export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [health, setHealth] = useState<Health | null>(null);
-  const [examples, setExamples] = useState<Example[]>([]);
+  const [examples, setExamples] = useState<Example[]>(STATIC_EXAMPLES as Example[]);
   const [activeExample, setActiveExample] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
   const [evidence, setEvidence] = useState("");
   const [touched, setTouched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [stillWorking, setStillWorking] = useState(false);
+  const [wakingNotice, setWakingNotice] = useState(false);
   const [error, setError] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -141,10 +144,87 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     });
   };
 
+  // Server health with cold-start detection and polling
   useEffect(() => {
-    getHealth().then(setHealth).catch(() => {});
-    getExamples().then(setExamples).catch(() => setExamples([]));
+    let active = true;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    const startTime = Date.now();
+
+    const slowTimer = setTimeout(() => {
+      if (active && !health) {
+        setWakingNotice(true);
+      }
+    }, 3000);
+
+    const checkHealth = async () => {
+      try {
+        const h = await getHealth();
+        if (!active) return;
+        setHealth(h);
+        setWakingNotice(false);
+        clearTimeout(slowTimer);
+      } catch {
+        if (!active) return;
+        setWakingNotice(true);
+        if (Date.now() - startTime < 90000) {
+          pollTimer = setTimeout(checkHealth, 4000);
+        }
+      }
+    };
+
+    checkHealth();
+
+    // Fetch fresh examples from API if available, else static examples remain
+    getExamples()
+      .then((data) => {
+        if (active && data && data.length > 0) setExamples(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+      clearTimeout(slowTimer);
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, []);
+
+  // Still working timer for slow reviews (> 8s)
+  useEffect(() => {
+    if (!loading) {
+      setStillWorking(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setStillWorking(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  // Privacy: noindex on saved review pages
+  useEffect(() => {
+    if (!reviewId) return;
+    let meta = document.querySelector('meta[name="robots"]') as HTMLMetaElement | null;
+    let created = false;
+    let previousContent: string | null = null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "robots";
+      meta.content = "noindex";
+      document.head.appendChild(meta);
+      created = true;
+    } else {
+      previousContent = meta.getAttribute("content");
+      meta.content = "noindex";
+    }
+
+    return () => {
+      if (created && meta && meta.parentNode) {
+        meta.parentNode.removeChild(meta);
+      } else if (meta && previousContent !== null) {
+        meta.content = previousContent;
+      }
+    };
+  }, [reviewId]);
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -480,6 +560,18 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                 </p>
               </section>
 
+              {wakingNotice && (
+                <div
+                  className="banner info cold-start-notice"
+                  role="status"
+                  aria-live="polite"
+                  style={{ marginBottom: 20 }}
+                >
+                  <span className="spin" aria-hidden="true" style={{ marginRight: 8, display: "inline-block" }} />
+                  <span>Waking the server (free hosting sleeps when idle). This can take up to a minute.</span>
+                </div>
+              )}
+
               <div id="workspace">
                 <Workspace
                   claim={claim}
@@ -493,6 +585,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                   onSubmit={submit}
                   onReset={reset}
                   loading={loading}
+                  stillWorking={stillWorking}
                   touched={touched}
                   onToast={addToast}
                 />

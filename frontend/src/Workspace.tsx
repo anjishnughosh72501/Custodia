@@ -16,6 +16,7 @@ interface Props {
   onSubmit: () => void;
   onReset: () => void;
   loading: boolean;
+  stillWorking?: boolean;
   touched: boolean;
   onToast?: (msg: string, tone?: "ok" | "warn" | "bad") => void;
 }
@@ -340,7 +341,7 @@ export function Workspace(p: Props) {
           disabled={p.loading || cOver || eOver}
         >
           {p.loading && <span className="spin" aria-hidden="true" />}
-          {p.loading ? "Checking…" : "Check claim"}
+          {p.loading ? (p.stillWorking ? "Still working…" : "Checking…") : "Check claim"}
         </button>
         <button className="btn" onClick={p.onReset} disabled={p.loading}>
           Reset

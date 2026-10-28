@@ -36,6 +36,7 @@ export interface Review {
   id: string; engine_version: string; extractor_mode: "heuristic" | "llm" | "heuristic_fallback"; degraded: boolean; warnings: string[];
   claim_text: string; evidence_text: string; comparisons: Comparison[]; language_risks: LanguageRisk[]; language_review: string;
   verdict: Verdict; rewrite: RewriteResult | null; nli?: NliDiagnostic | null;
+  delete_token?: string;
 }
 export interface Health {
   status: string;

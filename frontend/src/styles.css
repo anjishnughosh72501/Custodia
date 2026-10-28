@@ -1053,6 +1053,7 @@ html.js .reveal-item.revealed {
 .banner { margin-top: 16px; padding: 14px 18px; border-radius: var(--r-md); border: 1px solid; display: flex; gap: 12px; align-items: flex-start; }
 .banner.bad { background: var(--bad-bg); border-color: #E8BDB8; color: var(--bad-ink); }
 .banner.warn { background: var(--warn-bg); border-color: #EBD3A0; color: var(--warn-ink); }
+.banner.info { background: #EBF3FA; border-color: #BDD8F0; color: #1E4E79; }
 .banner b { font-weight: 650; }
 
 /* ---------- loading ---------- */

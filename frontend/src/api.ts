@@ -3,6 +3,8 @@ import { normalizeReview } from "./reviewShape";
 
 export { normalizeReview };
 
+export const API_BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+
 export class ApiError extends Error {
   constructor(public code: string, message: string) { super(message); }
 }
@@ -10,8 +12,16 @@ export class ApiError extends Error {
 async function call<T>(path: string, init?: RequestInit, timeoutMs = 45000): Promise<T> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  const url = `${API_BASE}${path}`;
   try {
-    const res = await fetch(path, { ...init, signal: ctl.signal, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+    const res = await fetch(url, {
+      ...init,
+      signal: ctl.signal,
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
+    });
+    if (res.status === 204) {
+      return {} as T;
+    }
     const body = await res.json().catch(() => null);
     if (!res.ok) {
       const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
@@ -24,6 +34,21 @@ async function call<T>(path: string, init?: RequestInit, timeoutMs = 45000): Pro
     throw new ApiError("NETWORK", "Could not reach the Custodia server. Check your connection and try again.");
   } finally { clearTimeout(timer); }
 }
+
+export const pingServer = async (): Promise<boolean> => {
+  try {
+    await call<{ ok: boolean }>("/api/ping", undefined, 5000);
+    return true;
+  } catch {
+    // Retry once on failure
+    try {
+      await call<{ ok: boolean }>("/api/ping", undefined, 5000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+};
 
 export const getHealth = () => call<Health>("/api/health", undefined, 8000);
 export const getExamples = () => call<{ examples: Example[] }>("/api/examples", undefined, 8000).then((r) => r.examples);
@@ -50,7 +75,19 @@ export const createReview = async (claim_text: string, evidence_text: string): P
   if (!normalized) {
     throw new ApiError("INVALID_RESPONSE", "The server returned an unrecognised review format.");
   }
+  // Preserve delete_token from raw response if provided
+  if (raw && typeof raw === "object" && typeof (raw as Record<string, unknown>).delete_token === "string") {
+    normalized.delete_token = (raw as Record<string, unknown>).delete_token as string;
+  }
   return normalized;
 };
+
+export const deleteReview = async (id: string, deleteToken: string): Promise<void> => {
+  await call<unknown>(`/api/reviews/${id}`, {
+    method: "DELETE",
+    headers: { "x-delete-token": deleteToken },
+  });
+};
+
 export const requestRewrite = (id: string, candidate_text?: string) =>
   call<RewriteResult>(`/api/reviews/${id}/rewrite`, { method: "POST", body: JSON.stringify(candidate_text === undefined ? {} : { candidate_text }) });

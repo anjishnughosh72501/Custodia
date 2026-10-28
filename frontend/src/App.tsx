@@ -1,8 +1,9 @@
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRoute } from "./router";
 import Landing from "./pages/Landing";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { lazyWithRetry } from "./lazyWithRetry";
+import { pingServer } from "./api";
 
 const Checker = lazyWithRetry(() => import("./pages/Checker"));
 const Examples = lazyWithRetry(() => import("./pages/Examples"));
@@ -24,6 +25,11 @@ function CheckerSkeleton() {
 
 export default function App() {
   const route = useRoute();
+
+  // Fire-and-forget server warm-up on initial load so Render wakes while reading
+  useEffect(() => {
+    pingServer();
+  }, []);
 
   if (route.name === "checker" || route.name === "review") {
     return (
