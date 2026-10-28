@@ -207,7 +207,7 @@ export function Workspace(p: Props) {
 
       <div className="fields">
         <div className="field claim">
-          <div className="field-header">
+          <div className="field-header field-meta">
             <label htmlFor="claim">Draft marketing claim</label>
             <div className="field-quick-actions">
               <button
@@ -223,7 +223,7 @@ export function Workspace(p: Props) {
                   <span className="dot-sep" aria-hidden="true">·</span>
                   <button
                     type="button"
-                    className="btn-link quick-btn"
+                    className="btn-link quick-btn clear-btn"
                     onClick={() => p.setClaim("")}
                     aria-label="Clear claim text"
                   >
@@ -269,7 +269,7 @@ export function Workspace(p: Props) {
         </div>
 
         <div className="field evidence">
-          <div className="field-header">
+          <div className="field-header field-meta">
             <label htmlFor="evidence">Supporting evidence</label>
             <div className="field-quick-actions">
               <button
@@ -285,7 +285,7 @@ export function Workspace(p: Props) {
                   <span className="dot-sep" aria-hidden="true">·</span>
                   <button
                     type="button"
-                    className="btn-link quick-btn"
+                    className="btn-link quick-btn clear-btn"
                     onClick={() => p.setEvidence("")}
                     aria-label="Clear evidence text"
                   >

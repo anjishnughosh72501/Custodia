@@ -20,8 +20,24 @@ export function Doc({ text, marks, pane, selected, onSelect, docRef }: DocProps)
         const isSel = selected !== null && s.ids.includes(selected);
         const primary = isSel ? (selected as string) : s.ids[0];
         return (
-          <mark key={i} data-ids={s.ids.join(" ")} className={`${tone.get(primary) ?? "warn"}${isSel ? " sel" : ""}`}
-            onClick={() => onSelect(isSel ? null : primary)} title="Click to focus this finding">{s.text}</mark>
+          <mark
+            key={i}
+            data-ids={s.ids.join(" ")}
+            className={`${tone.get(primary) ?? "warn"}${isSel ? " sel" : ""}`}
+            tabIndex={0}
+            role="button"
+            aria-pressed={isSel}
+            onClick={() => onSelect(isSel ? null : primary)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(isSel ? null : primary);
+              }
+            }}
+            title="Click to focus this finding"
+          >
+            {s.text}
+          </mark>
         );
       })}
     </div>

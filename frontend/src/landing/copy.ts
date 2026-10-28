@@ -195,7 +195,7 @@ export const LANDING_COPY = {
         id: "data-retention",
         question: "What happens to the text I paste?",
         answer:
-          "Text is stored so share links work. Your input is never used for training.",
+          "Reviews are saved in a local SQLite database on the server so share links work. On ephemeral hosting (like free cloud containers), this storage resets whenever the server restarts. Your text is never used to train any model, and server logs record only review metadata, never your claim or evidence text.",
       },
     ] as FaqItem[],
   },

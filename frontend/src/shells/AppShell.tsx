@@ -41,6 +41,9 @@ export function AppShell({
             <Link href="/" className="app-bar-navlink">
               Home
             </Link>
+            <Link href="/examples" className="app-bar-navlink">
+              Examples
+            </Link>
           </div>
 
           <div className="app-bar-actions">

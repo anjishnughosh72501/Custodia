@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { lazyWithRetry } from "./lazyWithRetry";
 
 const Checker = lazyWithRetry(() => import("./pages/Checker"));
+const Examples = lazyWithRetry(() => import("./pages/Examples"));
 
 function CheckerSkeleton() {
   return (
@@ -29,6 +30,16 @@ export default function App() {
       <ErrorBoundary>
         <Suspense fallback={<CheckerSkeleton />}>
           <Checker exampleId={route.exampleId} reviewId={route.reviewId} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (route.name === "examples") {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<CheckerSkeleton />}>
+          <Examples />
         </Suspense>
       </ErrorBoundary>
     );

@@ -60,3 +60,41 @@ def test_rewrite_refuses_ambiguous_or_negated_evidence():
     X = HeuristicExtractor()
     assert build_template(X.extract(EVIDENCE + " Support tickets fell by 12%.", "evidence")) is None
     assert build_template(X.extract(BASE + "median setup time did not fall by 30%.", "evidence")) is None
+
+
+def test_causal_claim_requires_human_review():
+    from app.service import ReviewService
+    from app.store import Store
+    s = ReviewService(Store(":memory:"))
+    r = s.review(BASE + "median setup time fell by 30% because of our software.", EVIDENCE)
+    assert r.verdict.status.value == "NEEDS_HUMAN_REVIEW"
+    assert any(risk.category == "CAUSAL" for risk in r.language_risks)
+
+
+def test_terminology_change_is_flagged_for_review():
+    from app.service import ReviewService
+    from app.store import Store
+    s = ReviewService(Store(":memory:"))
+    r = s.review(BASE + "median onboarding time fell by 30%.", EVIDENCE)
+    assert any(risk.category == "TERMINOLOGY_CHANGE" for risk in r.language_risks)
+    assert r.verdict.status.value == "NEEDS_HUMAN_REVIEW"
+
+
+def test_dropped_evidence_qualifier_withholds_approval():
+    from app.service import ReviewService
+    from app.store import Store
+    s = ReviewService(Store(":memory:"))
+    ev = "In a preliminary 30-day test of 120 small-business customers using Pro, median setup time fell by 30%."
+    r = s.review(EVIDENCE, ev)
+    assert any(risk.category == "MISSING_QUALIFIER" for risk in r.language_risks)
+    assert r.verdict.status.value == "NEEDS_HUMAN_REVIEW"
+
+
+def test_wording_covered_by_evidence_is_approved():
+    from app.service import ReviewService
+    from app.store import Store
+    s = ReviewService(Store(":memory:"))
+    claim = "In a 30-day test of 120 small-business customers using Pro, median setup time fell by 30% because of the new features."
+    ev = "In a 30-day test of 120 small-business customers using Pro, median setup time fell by 30% because of the new features."
+    r = s.review(claim, ev)
+    assert r.verdict.status.value == "SUPPORTED_BY_SUPPLIED_EVIDENCE"

@@ -8,6 +8,10 @@ export const prefetchChecker = () => {
   import("../pages/Checker");
 };
 
+export const prefetchExamples = () => {
+  import("../pages/Examples");
+};
+
 interface MarketingShellProps {
   children: ReactNode;
   notFound?: boolean;
@@ -81,11 +85,14 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
 
           <div className="shell-nav-links desktop-only">
             <a href="#how-it-works" onClick={(e) => handleNavClick(e, "how-it-works")}>
-              How it works
+              Product
             </a>
-            <a href="#what-it-catches" onClick={(e) => handleNavClick(e, "what-it-catches")}>
-              What it catches
+            <a href="#dimensions" onClick={(e) => handleNavClick(e, "dimensions")}>
+              7 Dimensions
             </a>
+            <Link href="/examples" prefetch={prefetchExamples}>
+              Examples
+            </Link>
             <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
               Limits
             </a>
@@ -126,11 +133,14 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
           <div id="mobile-nav-menu" className="mobile-nav-drawer mobile-only">
             <div className="mobile-nav-items">
               <a href="#how-it-works" onClick={(e) => handleNavClick(e, "how-it-works")}>
-                How it works
+                Product
               </a>
-              <a href="#what-it-catches" onClick={(e) => handleNavClick(e, "what-it-catches")}>
-                What it catches
+              <a href="#dimensions" onClick={(e) => handleNavClick(e, "dimensions")}>
+                7 Dimensions
               </a>
+              <Link href="/examples" onClick={() => setMenuOpen(false)} prefetch={prefetchExamples}>
+                Examples
+              </Link>
               <a href="#limits" onClick={(e) => handleNavClick(e, "limits")}>
                 Limits
               </a>
@@ -208,8 +218,13 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
                     </Link>
                   </li>
                   <li>
+                    <Link href="/examples" prefetch={prefetchExamples}>
+                      Examples library
+                    </Link>
+                  </li>
+                  <li>
                     <a href="#what-it-catches" onClick={(e) => handleNavClick(e, "what-it-catches")}>
-                      Examples
+                      What it catches
                     </a>
                   </li>
                   <li>

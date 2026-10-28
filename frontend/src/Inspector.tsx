@@ -39,7 +39,12 @@ export function Inspector({ claim, evidence, comparisons, risks, selected, onSel
     if (PB.left < PA.right - 4) return setThread(null);                         // stacked (mobile) layout: no thread
     const inside = (r: DOMRect, p: DOMRect) => r.bottom > p.top && r.top < p.bottom;
     if (!inside(A, PA) || !inside(B, PB)) return setThread(null);                // target scrolled out of its pane
-    const x1 = PA.right - W.left, y1 = A.top + A.height / 2 - W.top, x2 = PB.left - W.left, y2 = B.top + B.height / 2 - W.top;   // anchored at the pane edges, level with each highlight
+    const x1 = PA.right - W.left;
+    const rawY1 = A.top + A.height / 2 - W.top;
+    const y1 = Math.max(PA.top - W.top + 6, Math.min(PA.bottom - W.top - 6, rawY1));
+    const x2 = PB.left - W.left;
+    const rawY2 = B.top + B.height / 2 - W.top;
+    const y2 = Math.max(PB.top - W.top + 6, Math.min(PB.bottom - W.top - 6, rawY2));
     const mx = (x1 + x2) / 2;
     setThread({ d: `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`, x1, y1, x2, y2 });
   }, [selected, claim, evidence, comparisons, risks]);
@@ -51,13 +56,23 @@ export function Inspector({ claim, evidence, comparisons, risks, selected, onSel
       if (pane && m) pane.scrollTo({ top: m.offsetTop - pane.clientHeight / 2 + m.offsetHeight / 2, behavior: reduceMotion() ? "auto" : "smooth" });
     };
     center(claimRef.current); center(evRef.current);
-    layout();
+    const raf = requestAnimationFrame(layout);
     const t = window.setTimeout(layout, 380);                                     // after smooth scroll settles
     const ro = new ResizeObserver(layout);
     if (wrap.current) ro.observe(wrap.current);
+    if (claimRef.current) ro.observe(claimRef.current);
+    if (evRef.current) ro.observe(evRef.current);
     [claimRef.current, evRef.current].forEach((p) => p?.addEventListener("scroll", layout, { passive: true }));
     window.addEventListener("resize", layout);
-    return () => { clearTimeout(t); ro.disconnect(); window.removeEventListener("resize", layout); [claimRef.current, evRef.current].forEach((p) => p?.removeEventListener("scroll", layout)); };
+    window.addEventListener("scroll", layout, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+      ro.disconnect();
+      window.removeEventListener("resize", layout);
+      window.removeEventListener("scroll", layout);
+      [claimRef.current, evRef.current].forEach((p) => p?.removeEventListener("scroll", layout));
+    };
   }, [selected, layout]);
 
   return (

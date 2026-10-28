@@ -48,6 +48,13 @@ describe("router parseRoute", () => {
     expect(r.notFound).toBe(true);
   });
 
+  it("matches examples library path", () => {
+    const r = parseRoute("/examples");
+    expect(r.name).toBe("examples");
+    expect(r.notFound).toBeFalsy();
+    expect(r.exampleId).toBeUndefined();
+  });
+
   it("marks unknown path as landing with notFound", () => {
     const r = parseRoute("/unknown-page");
     expect(r.name).toBe("landing");
