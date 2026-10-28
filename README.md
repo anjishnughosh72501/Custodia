@@ -1,7 +1,7 @@
 # Custodia
 
-> **Deterministic claim verification for marketing and compliance.**  
-> Checks whether marketing wording stays strictly within the supplied evidence before publication.
+> **Rule-based claim verification for marketing and compliance.**  
+> Verdicts are decided by deterministic code; a model may only propose quotes that are verified against your text.
 
 ---
 
@@ -364,14 +364,62 @@ HTTP status codes used:
 
 ---
 
-## Security & Deployment
+## Deployment & Production Architecture
 
-### Production Hardening
-- **Security Headers Middleware**: Every response includes `Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: strict-origin-when-cross-origin`.
-- **Proxy-Aware Sliding Window Rate Limiting**: The rate limiter inspects the client IP from the first hop of `X-Forwarded-For` when behind a reverse proxy, falling back to direct client IP. Expired timestamps are periodically pruned.
-- **Input Sanitization**: Angular brackets and HTML-like markup are strictly handled as plain text spans, preventing DOM XSS.
-- **Docker Container**: Multi-stage build (Node 22 build stage, Python 3.12 slim runtime stage), runs as an unprivileged `custodia` user (`UID 10001`), with `/data` volume for SQLite persistence and an automated `HEALTHCHECK`.
-- **Render Deployment Blueprint**: Included in `render.yaml` for one-click deployment.
+Custodia supports two deployment architectures:
+
+### Option A: Vercel (Frontend) + Render (Backend) Split (Production Recommended)
+
+1. **Deploy Backend to Render**:
+   - Create a Web Service connected to this repository.
+   - Use the included `Dockerfile` (or Python 3.12 environment with `uvicorn app.main:app --host 0.0.0.0 --port $PORT`).
+   - Configure Environment Variables:
+     - `CUSTODIA_CORS_ORIGINS`: `https://<your-vercel-app>.vercel.app` (or `*` for testing).
+     - `DATABASE_URL` (optional): PostgreSQL connection string (e.g. Neon, Supabase) with automatic fallback to `/data/custodia.db` SQLite.
+     - `ANTHROPIC_API_KEY` (optional): API key for model quote proposals and rewrites (graceful heuristic fallback if unset).
+   - Healthcheck endpoint: `/api/ping` or `/api/health`.
+
+2. **Deploy Frontend to Vercel**:
+   - Import the repository into Vercel.
+   - Set **Root Directory** to `frontend`.
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Add Environment Variable:
+     - `VITE_API_BASE`: `https://<your-render-service>.onrender.com`
+
+3. **Handling Free-Tier Cold Starts**:
+   - Render's free tier spins down containers after 15 minutes of inactivity.
+   - **Silent Warm-Up**: Custodia's frontend automatically fires a silent background ping (`GET /api/ping`) on page load.
+   - **Cold-Start Waking Banner**: If the backend takes longer than 3 seconds to respond, an inline status notice informs the user that the server is waking, polling every 4 seconds.
+   - **Offline Fallback**: If the server is sleeping, 16 pre-bundled illustrative scenarios load immediately from `examples.generated.json`.
+   - **Keep-Warm Tip**: Set up a free 10-minute cron ping (e.g. via UptimeRobot or cron-job.org) targeting `https://<your-render-service>.onrender.com/api/ping`.
+
+### Option B: Single-Service Docker (FastAPI serving built React SPA)
+
+To run everything in a single self-contained container:
+```bash
+# Build the production image
+docker build -t custodia .
+
+# Run container (exposes port 8000)
+docker run -p 8000:8000 -v custodia_data:/data custodia
+```
+FastAPI serves both the API endpoints (`/api/*`) and the built React frontend (`/*`) with client-side SPA fallback.
+
+---
+
+## Evaluation & Benchmark Suite
+
+Custodia includes an automated evaluation suite testing 65 realistic and adversarial marketing claim pairs across 16 categories:
+
+- **Run the evaluation**:
+  ```bash
+  python bench/run.py
+  ```
+- **Results**:
+  - `dev` split (38 cases): 0 false approvals, 0 false rejections
+  - `heldout` split (27 cases): 0 false approvals, 0 false rejections
+  - Full details in [docs/BENCHMARK.md](file:///c:/A%20folder/Code%20Projects/ClaimFit-main/ClaimFit-main/docs/BENCHMARK.md) and [bench/RESULTS.md](file:///c:/A%20folder/Code%20Projects/ClaimFit-main/ClaimFit-main/bench/RESULTS.md).
 
 ---
 
