@@ -1,30 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "../router";
-import { getHealth, getReview } from "../api";
+import { getHealth } from "../api";
 import type { Health } from "../types";
-import { prefetchChecker } from "../shells/MarketingShell";
+import { prefetchChecker, prefetchExamples } from "../shells/MarketingShell";
 import { Magnet } from "../vendor/reactbits/Magnet";
 import { ShinyText } from "../vendor/reactbits/ShinyText";
 import { initHeroParallax } from "../motion/anime";
 import { HeroDemo } from "./HeroDemo";
 import { LANDING_COPY } from "./copy";
 
-// Module scope cache: probe only once per page load, ignoring errors silently
-let demoCriticalProbePromise: Promise<boolean> | null = null;
-
-function probeDemoCritical(): Promise<boolean> {
-  if (!demoCriticalProbePromise) {
-    demoCriticalProbePromise = getReview("demo-critical")
-      .then((r) => r !== null)
-      .catch(() => false);
-  }
-  return demoCriticalProbePromise;
-}
-
 export function Hero() {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
-  const [demoReviewAvailable, setDemoReviewAvailable] = useState(false);
   const heroSectionRef = useRef<HTMLElement>(null);
   const demoVisualRef = useRef<HTMLDivElement>(null);
 
@@ -44,17 +31,10 @@ export function Hero() {
         if (!cancelled) setHealthLoading(false);
       });
 
-    // Check if demo-critical review is available (cached in module scope, silent catch)
-    probeDemoCritical().then((available) => {
-      if (!cancelled) setDemoReviewAvailable(available);
-    });
-
     return () => {
       cancelled = true;
     };
   }, []);
-
-  const secondaryHref = demoReviewAvailable ? "/r/demo-critical" : "/check?example=critical";
 
   return (
     <section ref={heroSectionRef} className="hero-section hero-full-viewport" aria-label="Introduction">
@@ -90,7 +70,7 @@ export function Hero() {
                 {LANDING_COPY.hero.ctaPrimary}
               </Link>
             </Magnet>
-            <Link href={secondaryHref} className="btn hero-secondary-btn" prefetch={prefetchChecker}>
+            <Link href="/examples" className="btn hero-secondary-btn" prefetch={prefetchExamples}>
               {LANDING_COPY.hero.ctaSecondary}
             </Link>
           </div>
@@ -98,7 +78,7 @@ export function Hero() {
           <div className="hero-facts-strip">
             <span className="fact-item">Seven dimensions</span>
             <span className="fact-bullet" aria-hidden="true">·</span>
-            <span className="fact-item">Verified quotes only</span>
+            <span className="fact-item">Every finding quotes your text</span>
             <span className="fact-bullet" aria-hidden="true">·</span>
             <span className="fact-item">Unclear goes to a person</span>
           </div>

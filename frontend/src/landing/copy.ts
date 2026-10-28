@@ -19,7 +19,7 @@ export const LANDING_COPY = {
     headline: "Catch claims that outgrow their evidence before you publish.",
     sub: "Paste a marketing claim and the evidence behind it. Custodia compares seven dimensions, shows the exact words each finding rests on, and sends anything unclear to a person.",
     ctaPrimary: "Check a claim",
-    ctaSecondary: "See a live example",
+    ctaSecondary: "Browse examples",
     quietNote: "Checks your supplied evidence only. It cannot tell you a claim is true.",
     cardCaption: "Real output from the Custodia engine for a sample claim.",
   },
@@ -177,7 +177,7 @@ export const LANDING_COPY = {
         id: "accuracy",
         question: "How accurate is it?",
         answer:
-          "Custodia reports measured false approvals across verified test cases. This is not an accuracy figure, because real-world claims vary widely; rather, it is a guarantee that our rules prioritize withholding approval over rubber-stamping.",
+          "Custodia reports measured false approvals across verified test cases. This is not an accuracy figure, because real-world claims vary widely; rather, the rules are designed to prioritize withholding approval over rubber-stamping.",
       },
       {
         id: "model-failure",
