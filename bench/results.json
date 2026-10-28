@@ -1,0 +1,22 @@
+{
+  "total_cases": 65,
+  "false_approvals": 0,
+  "false_rejections": 0,
+  "date": "Oct 28, 2026",
+  "engine_version": "rules-1.1",
+  "baseline": {
+    "total": 45,
+    "false_approvals": 0,
+    "false_rejections": 0,
+    "approved": 12,
+    "withheld": 33
+  },
+  "adversarial": {
+    "total": 20,
+    "false_approvals": 0,
+    "false_rejections": 0,
+    "approved": 3,
+    "withheld": 17
+  },
+  "failures": []
+}
