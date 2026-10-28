@@ -313,6 +313,9 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
           </div>
 
           <div className="footer-bottom">
+            <p style={{ marginBottom: "8px", fontWeight: 500 }}>
+              Built for the hackathon by &lt;TEAM_NAMES&gt;. Contact: <a href="mailto:<CONTACT_EMAIL>">&lt;CONTACT_EMAIL&gt;</a>
+            </p>
             <p>
               Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
               whether the evidence itself is reliable, and it supports English text only. Example scenarios are illustrative
