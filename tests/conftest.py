@@ -1,4 +1,5 @@
 import os
+os.environ["CUSTODIA_DB"] = ":memory:"
 os.environ["SCOPELOCK_DB"] = ":memory:"
 import pytest
 from fastapi.testclient import TestClient

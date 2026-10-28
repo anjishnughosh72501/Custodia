@@ -12,7 +12,7 @@ from .rewrite import build_template, evidence_sentence
 from .rules.engine import ENGINE_VERSION, compare_frames, decide
 from .store import Store
 
-log = logging.getLogger("scopelock")
+log = logging.getLogger("custodia")
 
 
 class ReviewService:

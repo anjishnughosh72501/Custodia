@@ -1,7 +1,7 @@
 """Browser end-to-end checks against a RUNNING server (default http://localhost:8000/check).
 
 Not part of the default `pytest` run (needs Playwright + Chromium + a built frontend).
-Run:  SCOPELOCK_URL=http://localhost:8000/check python tests/e2e/test_ui.py
+Run:  CUSTODIA_URL=http://localhost:8000/check python tests/e2e/test_ui.py
 Exits non-zero if any check fails.
 """
 import os, sys

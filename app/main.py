@@ -70,7 +70,7 @@ def build_service_from_env() -> ReviewService:
         # Attempt safe initial load (does not crash if model is missing)
         nli.load()
 
-    return ReviewService(Store(get_env("DB", "scopelock.db")), llm=llm, nli=nli)
+    return ReviewService(Store(get_env("DB", "custodia.db")), llm=llm, nli=nli)
 
 
 def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int] = None) -> FastAPI:

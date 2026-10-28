@@ -4,7 +4,7 @@ from .models import Review
 
 
 class Store:
-    def __init__(self, path: str = "scopelock.db"):
+    def __init__(self, path: str = "custodia.db"):
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._lock = threading.Lock()
         with self._lock:
