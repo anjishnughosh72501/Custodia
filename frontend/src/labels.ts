@@ -33,4 +33,7 @@ export const ABSTAIN_LABEL: Record<string, string> = {
   EXTRACTION_DEGRADED: "The model step failed, so approval is withheld.",
   INSTRUCTION_LIKE_EVIDENCE: "Instruction-like text was found in the input. It was treated as data only.",
   LANGUAGE_RISK_UNRESOLVED: "Wording risks below need a person’s judgement.",
+  SEMANTIC_CONTRADICTION_FLAGGED: "Semantic inference model flagged a potential contradiction between evidence and claim.",
+  SEMANTIC_NEUTRAL_FLAGGED: "Semantic inference found the evidence does not clearly establish or entail the claim.",
+  NLI_INPUT_TRUNCATED: "Semantic input exceeded sequence length and was truncated; approval is withheld.",
 };

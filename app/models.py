@@ -94,6 +94,22 @@ class RewriteResult(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class NliDiagnostic(BaseModel):
+    """Semantic NLI diagnostic signal. Informational only; deterministic rules retain authority."""
+    available: bool = False
+    model_id: str = "cross-encoder/nli-MiniLM2-L6-H768"
+    predicted_label: Optional[str] = None  # entailment | neutral | contradiction
+    entailment_score: Optional[float] = None
+    neutral_score: Optional[float] = None
+    contradiction_score: Optional[float] = None
+    truncated: bool = False
+    disagreed_with_rules: bool = False
+    requires_human_review: bool = False
+    explanation: Optional[str] = None
+    latency_ms: Optional[float] = None
+    warning: Optional[str] = None
+
+
 class Review(BaseModel):
     id: str
     engine_version: str
@@ -109,6 +125,7 @@ class Review(BaseModel):
     language_review: str = "rules"       # rules | rules+model | rules (model unavailable)
     verdict: Verdict
     rewrite: Optional[RewriteResult] = None
+    nli: Optional[NliDiagnostic] = None
 
 
 class ReviewRequest(BaseModel):

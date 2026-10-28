@@ -17,10 +17,36 @@ export interface RewriteResult {
   text: string | null; source: string; passes_recheck: boolean; comparisons: Comparison[]; language_risks: LanguageRisk[];
   verdict: Verdict | null; notes: string[];
 }
+export interface NliDiagnostic {
+  available: boolean;
+  model_id: string;
+  predicted_label: "entailment" | "neutral" | "contradiction" | null;
+  entailment_score: number | null;
+  neutral_score: number | null;
+  contradiction_score: number | null;
+  truncated: boolean;
+  disagreed_with_rules: boolean;
+  requires_human_review: boolean;
+  explanation: string | null;
+  latency_ms: number | null;
+  warning?: string | null;
+}
+
 export interface Review {
   id: string; engine_version: string; extractor_mode: "heuristic" | "llm" | "heuristic_fallback"; degraded: boolean; warnings: string[];
   claim_text: string; evidence_text: string; comparisons: Comparison[]; language_risks: LanguageRisk[]; language_review: string;
-  verdict: Verdict; rewrite: RewriteResult | null;
+  verdict: Verdict; rewrite: RewriteResult | null; nli?: NliDiagnostic | null;
 }
-export interface Health { status: string; extractor_mode: "heuristic" | "llm"; llm_configured: boolean; engine_version: string; language_review: string; limits: { claim_chars: number; evidence_chars: number } }
+export interface Health {
+  status: string;
+  extractor_mode: "heuristic" | "llm";
+  llm_configured: boolean;
+  engine_version: string;
+  language_review: string;
+  limits: { claim_chars: number; evidence_chars: number };
+  active_mode?: string;
+  nli_enabled?: boolean;
+  nli_available?: boolean;
+  nli_model_id?: string | null;
+}
 export interface Example { id: string; title: string; tag: string; blurb: string; claim: string; evidence: string; expected: VerdictStatus; candidate?: string }

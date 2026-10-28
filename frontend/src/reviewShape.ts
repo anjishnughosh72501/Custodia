@@ -138,6 +138,30 @@ export function normalizeReview(raw: unknown): Review | null {
       ? (data.rewrite as Review["rewrite"])
       : null;
 
+  let nli: Review["nli"] = null;
+  if (data.nli && typeof data.nli === "object") {
+    const rawNli = data.nli as Record<string, unknown>;
+    nli = {
+      available: typeof rawNli.available === "boolean" ? rawNli.available : false,
+      model_id: typeof rawNli.model_id === "string" ? rawNli.model_id : "",
+      predicted_label:
+        rawNli.predicted_label === "entailment" ||
+        rawNli.predicted_label === "neutral" ||
+        rawNli.predicted_label === "contradiction"
+          ? rawNli.predicted_label
+          : null,
+      entailment_score: typeof rawNli.entailment_score === "number" ? rawNli.entailment_score : null,
+      neutral_score: typeof rawNli.neutral_score === "number" ? rawNli.neutral_score : null,
+      contradiction_score: typeof rawNli.contradiction_score === "number" ? rawNli.contradiction_score : null,
+      truncated: typeof rawNli.truncated === "boolean" ? rawNli.truncated : false,
+      disagreed_with_rules: typeof rawNli.disagreed_with_rules === "boolean" ? rawNli.disagreed_with_rules : false,
+      requires_human_review: typeof rawNli.requires_human_review === "boolean" ? rawNli.requires_human_review : false,
+      explanation: typeof rawNli.explanation === "string" ? rawNli.explanation : null,
+      latency_ms: typeof rawNli.latency_ms === "number" ? rawNli.latency_ms : null,
+      warning: typeof rawNli.warning === "string" ? rawNli.warning : undefined,
+    };
+  }
+
   return {
     id: data.id,
     claim_text: data.claim_text,
@@ -151,5 +175,6 @@ export function normalizeReview(raw: unknown): Review | null {
     language_risks,
     language_review,
     rewrite,
+    nli,
   };
 }

@@ -46,6 +46,19 @@ describe("normalizeReview", () => {
           resolution: "State facts directly.",
         },
       ],
+      nli: {
+        available: true,
+        model_id: "cross-encoder/nli-MiniLM2-L6-H768",
+        predicted_label: "entailment",
+        entailment_score: 0.98,
+        neutral_score: 0.01,
+        contradiction_score: 0.01,
+        truncated: false,
+        disagreed_with_rules: false,
+        requires_human_review: false,
+        explanation: "Semantic inference agrees that the evidence entails the claim.",
+        latency_ms: 12.5,
+      },
     };
     const res = normalizeReview(withOptionals);
     expect(res).not.toBeNull();
@@ -53,6 +66,9 @@ describe("normalizeReview", () => {
     expect(res?.warnings).toEqual(["extractor warning"]);
     expect(res?.language_risks.length).toBe(1);
     expect(res?.language_risks[0].title).toBe("Hedged claim");
+    expect(res?.nli?.available).toBe(true);
+    expect(res?.nli?.predicted_label).toBe("entailment");
+    expect(res?.nli?.entailment_score).toBe(0.98);
   });
 
   it("returns null on null, undefined, or non-object", () => {

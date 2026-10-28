@@ -27,6 +27,9 @@ export function VerdictCard({ review, onPickDimension }: { review: Review; onPic
         <div className="meta-line">
           <span>{MODE_LABEL[review.extractor_mode]}</span><span>Engine {review.engine_version}</span>
           <span>{risks > 0 ? `${risks} language risk${risks > 1 ? "s" : ""} to judge` : "No blocking language risks"}</span>
+          {review.nli && review.nli.available && (
+            <span>Semantic signal: {review.nli.predicted_label}{review.nli.disagreed_with_rules ? " (disagrees with rules)" : ""}</span>
+          )}
         </div>
       </div>
       <div className="rail dimension-strip" role="group" aria-label="Seven dimensions">

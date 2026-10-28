@@ -1,0 +1,170 @@
+[
+  {
+    "id": "tc-01",
+    "category": "exact_support",
+    "evidence": "In our Q3 financial report, total software revenue grew by 24% year-over-year.",
+    "claim": "Software revenue increased by 24% in Q3.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-02",
+    "category": "paraphrase_support",
+    "evidence": "Customer support resolution times decreased from 4.2 hours to 2.1 hours following the update.",
+    "claim": "The update cut customer support resolution times in half.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-03",
+    "category": "exact_support",
+    "evidence": "Over a 60-day trial of 150 participants, median sleep duration improved by 45 minutes.",
+    "claim": "Participants experienced a 45-minute improvement in median sleep duration during the trial.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-04",
+    "category": "exact_support",
+    "evidence": "Our database engine processed 50,000 queries per second under standard benchmark workloads.",
+    "claim": "The database reaches 50,000 queries per second under benchmark testing.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-05",
+    "category": "numerical_exaggeration",
+    "evidence": "Internal testing showed a 30% reduction in server memory footprint.",
+    "claim": "Internal testing showed a 45% reduction in server memory footprint.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-06",
+    "category": "direction_reversal",
+    "evidence": "Net user churn dropped by 12% in the second quarter.",
+    "claim": "User churn rose by 12% in Q2.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-07",
+    "category": "absolute_reversal",
+    "evidence": "The battery lasted 8.5 hours in continuous video playback tests.",
+    "claim": "The battery lasted less than 4 hours in continuous playback.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-08",
+    "category": "factual_conflict",
+    "evidence": "The free plan includes 5 GB of secure cloud storage.",
+    "claim": "The free plan provides unlimited storage with no restrictions.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-09",
+    "category": "unrelated_claim",
+    "evidence": "Our application received SOC 2 Type II compliance certification last November.",
+    "claim": "Our application is the most cost-effective CRM on the market.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-10",
+    "category": "insufficient_evidence",
+    "evidence": "We added two new data centers in Frankfurt and Singapore this quarter.",
+    "claim": "Global average query latency dropped to under 10 milliseconds.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-11",
+    "category": "speculative_generalization",
+    "evidence": "In our pilot study of 30 beta testers, 22 reported feeling more focused.",
+    "claim": "Every user experiences permanent focus improvements.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-12",
+    "category": "unsupported_causality",
+    "evidence": "Our customer satisfaction survey recorded an average score of 4.8 out of 5 stars.",
+    "claim": "Using our service guarantees your business will double its quarterly profits.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-13",
+    "category": "exact_support",
+    "evidence": "The new compression algorithm reduced bundle payload size from 500 KB to 250 KB.",
+    "claim": "Bundle size decreased by 50% with the new compression algorithm.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-14",
+    "category": "numerical_discrepancy",
+    "evidence": "Annual recurring revenue reached $10 million at year end.",
+    "claim": "Annual recurring revenue reached $25 million at year end.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-15",
+    "category": "neutral_unsupported",
+    "evidence": "Our framework scored 98% on standard web accessibility checks.",
+    "claim": "Over 90% of Fortune 500 companies use our framework.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-16",
+    "category": "exact_support",
+    "evidence": "Average checkout completion rate increased by 8 percentage points after simplifying the form.",
+    "claim": "Form simplification led to an 8 percentage point gain in checkout completion.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-17",
+    "category": "negation_conflict",
+    "evidence": "No data leaks were detected during the third-party penetration audit.",
+    "claim": "Multiple severe vulnerabilities were exploited during the penetration audit.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-18",
+    "category": "neutral_topic_drift",
+    "evidence": "We have offices in New York, London, and Tokyo.",
+    "claim": "Our customer service desk provides 24/7 phone support.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-19",
+    "category": "exact_support",
+    "evidence": "Page render time decreased from 1.2s to 0.6s on mobile devices.",
+    "claim": "Mobile page render time improved by 50%.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-20",
+    "category": "contradiction_unit",
+    "evidence": "The engine runs at 3,000 RPM under load.",
+    "claim": "The engine operates at 3,000 MPH under load.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-21",
+    "category": "neutral_missing_link",
+    "evidence": "We refreshed our brand identity and launched a redesign in May.",
+    "claim": "Organic search traffic tripled following the May launch.",
+    "expected_label": "neutral"
+  },
+  {
+    "id": "tc-22",
+    "category": "contradiction_direct",
+    "evidence": "The battery requires a specialized 45W charger.",
+    "claim": "The device charges without any external power source or cable.",
+    "expected_label": "contradiction"
+  },
+  {
+    "id": "tc-23",
+    "category": "exact_support",
+    "evidence": "In our laboratory evaluation, 85 out of 100 participants reported improved symptom scores.",
+    "claim": "85% of evaluated participants reported improved symptom scores in the lab test.",
+    "expected_label": "entailment"
+  },
+  {
+    "id": "tc-24",
+    "category": "neutral_ambiguity",
+    "evidence": "The update was released on iOS and Android app stores on Monday morning.",
+    "claim": "Over one million users installed the update on Monday.",
+    "expected_label": "neutral"
+  }
+]

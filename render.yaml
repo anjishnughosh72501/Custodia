@@ -11,3 +11,5 @@ services:
         sync: false        # optional: leave unset to run on the rule-based extractor
       - key: CUSTODIA_MODEL
         value: claude-sonnet-5-5
+      - key: CUSTODIA_NLI_ENABLED
+        value: "0"         # set to "1" to enable local quantized NLI inference

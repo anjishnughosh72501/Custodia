@@ -58,6 +58,29 @@ def test_health_reports_fallback_honestly(client):
     h = client.get("/api/health").json()
     assert h["status"] == "ok" and h["llm_configured"] is False
     assert h["extractor_mode"] == "heuristic" and h["language_review"] == "rules"
+    assert "nli_enabled" in h
+    assert "nli_available" in h
+    assert "active_mode" in h
+
+
+def test_health_with_nli_enabled(tmp_path):
+    from app.extraction.nli import NliClassifier, NliConfig
+    from app.service import ReviewService
+    from app.store import Store
+    from tests.test_nli import MockSession, MockTokenizer
+
+    cfg = NliConfig(enabled=True)
+    id2label = {0: "contradiction", 1: "entailment", 2: "neutral"}
+    nli = NliClassifier(cfg, session=MockSession(), tokenizer=MockTokenizer(), id2label=id2label)
+    svc = ReviewService(Store(str(tmp_path / "nli_test.db")), nli=nli)
+
+    c = TestClient(create_app(svc))
+    h = c.get("/api/health").json()
+    assert h["status"] == "ok"
+    assert h["nli_enabled"] is True
+    assert h["nli_available"] is True
+    assert h["active_mode"] == "heuristic+nli"
+    assert h["nli_model_id"] == "cross-encoder/nli-MiniLM2-L6-H768"
 
 def test_index_serves_built_frontend_or_says_it_is_missing(client, tmp_path, monkeypatch):
     # No build present -> explicit 503 notice, never a silent old page.

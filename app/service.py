@@ -4,8 +4,9 @@ import logging, uuid
 from typing import Optional
 from .extraction.heuristic import HeuristicExtractor
 from .extraction.llm import ExtractionError, LlmClient, LlmExtractor, ProviderError
+from .extraction.nli import NliClassifier
 from .extraction.parsers import instruction_like
-from .models import Frame, Review, RewriteResult
+from .models import Frame, NliDiagnostic, Review, RewriteResult, Verdict, VerdictStatus
 from .language.risk import analyze_language, verified_model_risks
 from .rewrite import build_template, evidence_sentence
 from .rules.engine import ENGINE_VERSION, compare_frames, decide
@@ -15,14 +16,26 @@ log = logging.getLogger("scopelock")
 
 
 class ReviewService:
-    def __init__(self, store: Store, llm: Optional[LlmClient] = None):
-        self.store, self.llm = store, llm
+    def __init__(self, store: Store, llm: Optional[LlmClient] = None, nli: Optional[NliClassifier] = None):
+        self.store, self.llm, self.nli = store, llm, nli
         self.heuristic = HeuristicExtractor()
         self.llm_extractor = LlmExtractor(llm) if llm else None
 
     @property
     def configured_mode(self) -> str:
         return "llm" if self.llm else "heuristic"
+
+    @property
+    def active_mode(self) -> str:
+        has_llm = self.llm is not None
+        has_nli = self.nli is not None and self.nli.is_available
+        if has_llm and has_nli:
+            return "llm+nli"
+        if has_llm:
+            return "llm"
+        if has_nli:
+            return "heuristic+nli"
+        return "heuristic"
 
     def _extract(self, text: str, role: str, warnings: list[str]) -> tuple[Frame, bool]:
         """Returns (frame, fell_back). A model failure NEVER stops the review; it degrades to the rule-based extractor."""
@@ -35,6 +48,129 @@ class ReviewService:
                 warnings.append(f"Model output rejected for {role} extraction ({ex}); used the rule-based fallback extractor.")
             return self.heuristic.extract(text, role), True
         return self.heuristic.extract(text, role), False
+
+    def _evaluate_nli(
+        self,
+        claim_text: str,
+        evidence_text: str,
+        det_verdict: Verdict,
+        warnings: list[str],
+    ) -> Optional[NliDiagnostic]:
+        """Runs NLI inference on premise (evidence) and hypothesis (claim) and applies conservative decision rules."""
+        if not self.nli:
+            return None
+
+        if not self.nli.is_available:
+            return NliDiagnostic(
+                available=False,
+                model_id=self.nli.config.model_id,
+                warning=self.nli._load_error or "NLI model unavailable",
+            )
+
+        res = self.nli.classify(evidence_text=evidence_text, claim_text=claim_text)
+        if not res.available:
+            if res.error:
+                warnings.append(f"Semantic NLI model unavailable ({res.error}); evaluated with deterministic checks only.")
+            return NliDiagnostic(
+                available=False,
+                model_id=res.model_id,
+                latency_ms=res.execution_time_ms,
+                warning=res.error,
+            )
+
+        if res.warning:
+            warnings.append(res.warning)
+
+        diag = NliDiagnostic(
+            available=True,
+            model_id=res.model_id,
+            predicted_label=res.predicted_label,
+            entailment_score=res.entailment_score,
+            neutral_score=res.neutral_score,
+            contradiction_score=res.contradiction_score,
+            truncated=res.truncated,
+            latency_ms=res.execution_time_ms,
+            warning=res.warning,
+        )
+
+        contradiction_thresh = self.nli.config.contradiction_threshold
+        entailment_thresh = self.nli.config.entailment_threshold
+
+        # Conservative Decision Rules:
+        # Rule 1: Entailment can NEVER upgrade a contradicted or uncertain claim to Supported.
+        # Rule 2: Deterministic rules retain final authority.
+        # Rule 3: If deterministic check is SUPPORTED, but NLI predicts contradiction or neutral/truncated,
+        #         withhold approval and route to human review.
+        if det_verdict.status == VerdictStatus.SUPPORTED_BY_SUPPLIED_EVIDENCE:
+            if res.predicted_label == "contradiction" and (res.contradiction_score or 0) >= contradiction_thresh:
+                diag.disagreed_with_rules = True
+                diag.requires_human_review = True
+                diag.explanation = (
+                    "Semantic inference detected a potential contradiction despite matching discrete dimensions; "
+                    "approval is withheld for human review."
+                )
+                det_verdict.status = VerdictStatus.NEEDS_HUMAN_REVIEW
+                det_verdict.needs_human = True
+                if "SEMANTIC_CONTRADICTION_FLAGGED" not in det_verdict.abstain_reasons:
+                    det_verdict.abstain_reasons.append("SEMANTIC_CONTRADICTION_FLAGGED")
+                det_verdict.summary = (
+                    "All dimensions looked supported, but approval is withheld: "
+                    "semantic inference model flagged a potential contradiction."
+                )
+            elif res.truncated:
+                diag.requires_human_review = True
+                diag.explanation = (
+                    "Evidence text exceeded the semantic model sequence limit and was truncated; "
+                    "evaluated conservatively."
+                )
+                det_verdict.status = VerdictStatus.NEEDS_HUMAN_REVIEW
+                det_verdict.needs_human = True
+                if "NLI_INPUT_TRUNCATED" not in det_verdict.abstain_reasons:
+                    det_verdict.abstain_reasons.append("NLI_INPUT_TRUNCATED")
+                det_verdict.summary = (
+                    "All dimensions looked supported, but approval is withheld: "
+                    "semantic input was truncated, so complete semantic verification could not be guaranteed."
+                )
+            elif res.predicted_label == "neutral" and (res.neutral_score or 0) >= 0.70:
+                diag.disagreed_with_rules = True
+                diag.requires_human_review = True
+                diag.explanation = (
+                    "Semantic model found the evidence does not clearly establish or entail the claim (neutral relationship); "
+                    "approval is withheld for human review."
+                )
+                det_verdict.status = VerdictStatus.NEEDS_HUMAN_REVIEW
+                det_verdict.needs_human = True
+                if "SEMANTIC_NEUTRAL_FLAGGED" not in det_verdict.abstain_reasons:
+                    det_verdict.abstain_reasons.append("SEMANTIC_NEUTRAL_FLAGGED")
+                det_verdict.summary = (
+                    "All dimensions looked supported, but approval is withheld: "
+                    "semantic inference model flagged that the evidence may not fully entail the claim."
+                )
+            else:
+                diag.explanation = "Semantic inference agrees that the evidence entails the claim."
+
+        elif det_verdict.status == VerdictStatus.NOT_SUPPORTED:
+            if res.predicted_label == "entailment" and (res.entailment_score or 0) >= entailment_thresh:
+                diag.disagreed_with_rules = True
+                diag.explanation = (
+                    "Semantic model predicted entailment, but deterministic checks identified contradictions in specific dimensions. "
+                    "Deterministic rules take precedence."
+                )
+            else:
+                diag.explanation = "Semantic inference and deterministic rules both indicate the claim is not supported."
+
+        elif det_verdict.status == VerdictStatus.NEEDS_HUMAN_REVIEW:
+            if res.predicted_label == "contradiction":
+                diag.explanation = "Deterministic dimensions require human review; semantic model also detected a contradiction."
+            elif res.predicted_label == "entailment":
+                diag.explanation = (
+                    "Semantic model predicted entailment, but approval remains withheld due to unverified dimensions, "
+                    "unresolved wording risks, or degraded extraction."
+                )
+            else:
+                diag.explanation = "Both deterministic checks and semantic model indicate uncertainty requiring human review."
+
+        return diag
 
     def review(self, claim_text: str, evidence_text: str) -> Review:
         warnings: list[str] = []
@@ -61,15 +197,17 @@ class ReviewService:
                 warnings.append(f"Model language review unavailable ({getattr(ex, 'code', 'invalid output')}); rule-based language checks only.")
                 language_review = "rules (model unavailable)"
         verdict = decide(comparisons, degraded=degraded, injection=injection, language_risks=risks)
+        nli_diag = self._evaluate_nli(claim_text, evidence_text, verdict, warnings)
         review = Review(id=uuid.uuid4().hex[:12], engine_version=ENGINE_VERSION,
                         extractor_mode="heuristic_fallback" if degraded else self.configured_mode,
                         degraded=degraded, warnings=warnings, claim_text=claim_text, evidence_text=evidence_text,
                         claim_frame=cf, evidence_frame=ef, comparisons=comparisons, language_risks=risks,
-                        language_review=language_review, verdict=verdict)
+                        language_review=language_review, verdict=verdict, nli=nli_diag)
         self.store.save(review)
         # Log metadata only: never the claim or evidence text.
-        log.info("review id=%s verdict=%s mode=%s degraded=%s claim_chars=%d evidence_chars=%d risks=%d",
-                 review.id, verdict.status.value, review.extractor_mode, degraded, len(claim_text), len(evidence_text), len(risks))
+        log.info("review id=%s verdict=%s mode=%s degraded=%s claim_chars=%d evidence_chars=%d risks=%d nli=%s",
+                 review.id, verdict.status.value, review.extractor_mode, degraded, len(claim_text), len(evidence_text),
+                 len(risks), nli_diag.predicted_label if nli_diag and nli_diag.available else "none")
         return review
 
     def _verify(self, review: Review, text: str, source: str, notes: list[str]) -> RewriteResult:
@@ -80,6 +218,9 @@ class ReviewService:
         risks = analyze_language(text, review.evidence_text, claim_frame=frame)
         injection = instruction_like(review.evidence_text) or instruction_like(text)
         verdict = decide(cmps, degraded=review.degraded or fell_back, injection=injection, language_risks=risks)
+        # Verify rewrites against NLI as well when available
+        if self.nli and self.nli.is_available:
+            self._evaluate_nli(text, review.evidence_text, verdict, warnings)
         ok = verdict.status.value == "SUPPORTED_BY_SUPPLIED_EVIDENCE"
         return RewriteResult(text=text, source=source, passes_recheck=ok, frame=frame, comparisons=cmps,
                              language_risks=risks, verdict=verdict, notes=notes + warnings)

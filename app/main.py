@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from .examples import EXAMPLES
 from .extraction.llm import LlmClient
+from .extraction.nli import NliClassifier, NliConfig
 from .models import ReviewRequest, RewriteRequest
 from .rules.engine import ENGINE_VERSION
 from .service import ReviewService
@@ -61,7 +62,15 @@ def build_service_from_env() -> ReviewService:
     if key and get_env("DISABLE_LLM") != "1":
         llm = LlmClient(key, get_env("MODEL", "claude-sonnet-5-5"),
                         timeout=float(get_env("LLM_TIMEOUT", "20")))
-    return ReviewService(Store(get_env("DB", "scopelock.db")), llm)
+
+    nli_cfg = NliConfig.from_env()
+    nli: Optional[NliClassifier] = None
+    if nli_cfg.enabled:
+        nli = NliClassifier(nli_cfg)
+        # Attempt safe initial load (does not crash if model is missing)
+        nli.load()
+
+    return ReviewService(Store(get_env("DB", "scopelock.db")), llm=llm, nli=nli)
 
 
 def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int] = None) -> FastAPI:
@@ -116,9 +125,20 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
 
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "extractor_mode": svc.configured_mode, "llm_configured": svc.llm is not None,
-                "engine_version": ENGINE_VERSION, "language_review": "rules+model" if svc.llm else "rules",
-                "limits": {"claim_chars": MAX_CLAIM, "evidence_chars": MAX_EVIDENCE}}
+        nli_avail = svc.nli.is_available if svc.nli else False
+        nli_enabled = svc.nli.config.enabled if svc.nli else False
+        return {
+            "status": "ok",
+            "extractor_mode": svc.configured_mode,
+            "active_mode": svc.active_mode,
+            "llm_configured": svc.llm is not None,
+            "nli_enabled": nli_enabled,
+            "nli_available": nli_avail,
+            "nli_model_id": svc.nli.config.model_id if svc.nli else None,
+            "engine_version": ENGINE_VERSION,
+            "language_review": "rules+model" if svc.llm else "rules",
+            "limits": {"claim_chars": MAX_CLAIM, "evidence_chars": MAX_EVIDENCE},
+        }
 
     @app.get("/api/examples")
     def examples():
