@@ -64,10 +64,6 @@ h1, h2, h3, p { margin: 0; }
   height: 100dvh;
   z-index: 90;
   background-color: transparent;
-  background-image: var(--grid-pattern);
-  background-size: var(--grid-size);
-  background-position: var(--grid-position);
-  background-attachment: fixed;
   border-left: 2px solid var(--ink);
   box-sizing: border-box;
   pointer-events: auto;
@@ -186,11 +182,6 @@ section[id], .section[id] {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-.palette-trigger-btn span {
-  font-family: monospace;
-  font-size: 12px;
-  font-weight: 700;
 }
 .app-bar-mode {
   display: inline-flex;
@@ -1408,7 +1399,26 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
   flex-direction: column;
   gap: 6px;
   align-items: stretch;
-  min-width: 170px;
+  min-width: 175px;
+}
+@media (max-width: 760px) {
+  .dimension-strip {
+    min-width: 0;
+    width: 100%;
+    margin-top: 12px;
+  }
+  .dimension-strip-cap {
+    text-align: left;
+  }
+}
+.dimension-strip-cap {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  text-align: right;
+  margin-bottom: 2px;
 }
 .dimension-strip-blocks {
   display: flex;
@@ -1419,6 +1429,9 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
   padding: 6px 10px;
   border-radius: var(--r-sm);
   border: 1.5px solid var(--ink);
@@ -1428,6 +1441,10 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
   cursor: pointer;
   text-align: left;
   transition: transform .1s var(--ease-out), background-color .15s ease;
+  box-sizing: border-box;
+}
+.dim-strip-btn svg {
+  flex-shrink: 0;
 }
 .dim-strip-btn:hover {
   transform: translateX(2px);

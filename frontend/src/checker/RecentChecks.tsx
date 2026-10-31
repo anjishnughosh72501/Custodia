@@ -65,11 +65,11 @@ export function RecentChecks({ onLoadText, className = "" }: RecentChecksProps) 
                     “{item.claimSnippet}…”
                   </Link>
                 </div>
-                {onLoadText && item.claimFull && (
+                {onLoadText && (item.claimFull || item.claimSnippet) && (
                   <button
                     type="button"
                     className="load-again-btn"
-                    onClick={() => onLoadText(item.claimFull, item.evidenceFull)}
+                    onClick={() => onLoadText(item.claimFull || item.claimSnippet, item.evidenceFull || "")}
                     title="Load claim and evidence text back into fields"
                   >
                     {CHECKER_COPY.recent.loadAgain}

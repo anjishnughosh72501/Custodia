@@ -52,8 +52,8 @@ export function VerdictCard({ review, onPickDimension }: { review: Review; onPic
           )}
         </div>
       </div>
-      <div className="rail dimension-strip" role="group" aria-label="Seven dimensions">
-        <span className="rail-cap">Seven dimensions</span>
+      <div className="dimension-strip" role="group" aria-label="Seven dimensions">
+        <span className="dimension-strip-cap">Seven dimensions</span>
         <div className="dimension-strip-blocks">
           {DIMENSIONS.map((d, i) => {
             const c = byDim.get(d); const t = c ? statusTone(c.status) : "warn";

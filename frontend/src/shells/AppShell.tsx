@@ -8,14 +8,12 @@ interface AppShellProps {
   children: ReactNode;
   onNewCheck?: () => void;
   onOpenRecent?: () => void;
-  onOpenPalette?: () => void;
 }
 
 export function AppShell({
   children,
   onNewCheck,
   onOpenRecent,
-  onOpenPalette,
 }: AppShellProps) {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState(false);
@@ -80,17 +78,6 @@ export function AppShell({
                 aria-label="Open recent checks"
               >
                 Recent
-              </button>
-            )}
-
-            {onOpenPalette && (
-              <button
-                type="button"
-                className="btn small palette-trigger-btn"
-                onClick={onOpenPalette}
-                aria-label="Open command palette (Ctrl+K or Command+K)"
-              >
-                <span>⌘K</span>
               </button>
             )}
 

@@ -338,6 +338,14 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
       .then(({ review: r, raw }) => {
         if (cancelled) return;
         if (!r) {
+          const exMatch = examples.find((e) => e.id === reviewId);
+          if (exMatch) {
+            setClaim(exMatch.claim);
+            setEvidence(exMatch.evidence);
+            setActiveExample(exMatch.id);
+            setTouched(false);
+            return;
+          }
           if (raw && typeof raw === "object") {
             const d = raw as Record<string, unknown>;
             if (typeof d.claim_text === "string") setClaim(d.claim_text);
@@ -350,18 +358,31 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         setClaim(r.claim_text);
         setEvidence(r.evidence_text);
         setTouched(false);
-        addItem({
-          id: r.id,
-          claimSnippet: r.claim_text.slice(0, 80),
-          claimFull: r.claim_text,
-          evidenceFull: r.evidence_text,
-          verdictStatus: r.verdict.status,
-        });
+        const isDemo = examples.some(
+          (ex) => ex.claim.trim() === r.claim_text.trim() && ex.evidence.trim() === r.evidence_text.trim()
+        );
+        if (!isDemo) {
+          addItem({
+            id: r.id,
+            claimSnippet: r.claim_text.slice(0, 80),
+            claimFull: r.claim_text,
+            evidenceFull: r.evidence_text,
+            verdictStatus: r.verdict.status,
+          });
+        }
       })
       .catch((e) => {
         if (cancelled) return;
+        const exMatch = examples.find((ex) => ex.id === reviewId);
+        if (exMatch) {
+          setClaim(exMatch.claim);
+          setEvidence(exMatch.evidence);
+          setActiveExample(exMatch.id);
+          setTouched(false);
+          return;
+        }
         setError(
-          e instanceof ApiError && (e.code === "HTTP_404" || e.code === "NOT_FOUND")
+          e instanceof ApiError && (e.code === "HTTP_404" || e.code === "NOT_FOUND" || e.code === "REVIEW_NOT_FOUND")
             ? "That review could not be found. It may have expired or never existed."
             : e instanceof ApiError
             ? e.message
@@ -375,7 +396,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     return () => {
       cancelled = true;
     };
-  }, [reviewId, addItem]);
+  }, [reviewId, addItem, examples]);
 
   const limits = health?.limits ?? FALLBACK_LIMITS;
   const reduce = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -408,13 +429,18 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
           // ignore
         }
       }
-      addItem({
-        id: r.id,
-        claimSnippet: claim.slice(0, 60),
-        claimFull: claim,
-        evidenceFull: evidence,
-        verdictStatus: r.verdict.status,
-      });
+      const isDemo = examples.some(
+        (ex) => ex.claim.trim() === claim.trim() && ex.evidence.trim() === evidence.trim()
+      );
+      if (!isDemo) {
+        addItem({
+          id: r.id,
+          claimSnippet: claim.slice(0, 60),
+          claimFull: claim,
+          evidenceFull: evidence,
+          verdictStatus: r.verdict.status,
+        });
+      }
 
       if (r.id) {
         navigate(`/r/${r.id}`, { scroll: false });
@@ -437,7 +463,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     } finally {
       setLoading(false);
     }
-  }, [claim, evidence, limits, addItem, refreshUsage]);
+  }, [claim, evidence, limits, addItem, refreshUsage, examples]);
 
   const reset = () => {
     setClaim("");
@@ -465,6 +491,25 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     setActiveExample(e.id);
     setTouched(false);
     clearResults();
+  };
+
+  const handleLoadRecentText = (claimText: string, evidenceText: string) => {
+    setClaim(claimText);
+    setEvidence(evidenceText);
+    setActiveExample(null);
+    setTouched(false);
+    clearResults();
+    if (reviewId) {
+      navigate("/check", { scroll: false });
+    }
+    window.setTimeout(() => {
+      document.getElementById("workspace")?.scrollIntoView({
+        behavior: reduce() ? "auto" : "smooth",
+        block: "start",
+      });
+      const claimEl = document.getElementById("claim") as HTMLTextAreaElement | null;
+      claimEl?.focus();
+    }, 50);
   };
 
   const pick = (d: string) => {
@@ -585,7 +630,6 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
           const rEl = document.querySelector(".recent-checks-panel");
           rEl?.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "center" });
         }}
-        onOpenPalette={() => setPaletteOpen(true)}
       >
         <Toasts toasts={toasts} onDismiss={removeToast} />
         <MiniVerdictBar
@@ -814,7 +858,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                 </div>
               ) : !review ? (
                 <div className="rail-sticky-wrapper">
-                  <RecentChecks onLoadText={(c, e) => { setClaim(c); setEvidence(e); }} />
+                  <RecentChecks onLoadText={handleLoadRecentText} />
                   <Legend />
                 </div>
               ) : (

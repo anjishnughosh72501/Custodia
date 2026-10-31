@@ -564,6 +564,12 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
         limiter.check(client_key(request))
         r = svc.store.get(review_id)
         if not r:
+            example_match = next((ex for ex in EXAMPLES if ex.get("id") == review_id), None)
+            if example_match:
+                r = svc.review(example_match["claim"], example_match["evidence"])
+                r.id = review_id
+                r.delete_token = None
+                return r
             raise ApiError(404, "REVIEW_NOT_FOUND", "This review expired or was deleted. Reviews are kept for 30 days.")
         # Do not expose delete_token on GET retrieval
         r.delete_token = None
@@ -575,7 +581,12 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
         check_csrf(request)
         r = svc.store.get(review_id)
         if not r:
-            raise ApiError(404, "REVIEW_NOT_FOUND", "This review expired or was deleted. Reviews are kept for 30 days.")
+            example_match = next((ex for ex in EXAMPLES if ex.get("id") == review_id), None)
+            if example_match:
+                r = svc.review(example_match["claim"], example_match["evidence"])
+                r.id = review_id
+            else:
+                raise ApiError(404, "REVIEW_NOT_FOUND", "This review expired or was deleted. Reviews are kept for 30 days.")
         try:
             req = RewriteRequest.model_validate(body)
         except ValidationError:
