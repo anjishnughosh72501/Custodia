@@ -38,40 +38,6 @@ export function createAnimeScope(root?: HTMLElement | null) {
 }
 
 /**
- * Effect 1: Scroll progress bar
- * A 3 px ink bar under the marketing nav whose width follows page scroll,
- * driven by onScroll in sync mode. Landing only.
- */
-export function initScrollProgressBar(barElement: HTMLElement | null): (() => void) | void {
-  if (!barElement || typeof window === "undefined") return;
-
-  if (isReducedMotion()) {
-    barElement.style.width = "0%";
-    return;
-  }
-
-  try {
-    const observer = onScroll({
-      sync: true,
-      onUpdate: (self: any) => {
-        const progress = typeof self.progress === "number" ? self.progress : 0;
-        barElement.style.width = `${Math.min(100, Math.max(0, progress * 100))}%`;
-      },
-    });
-
-    return () => {
-      try {
-        observer.revert();
-      } catch {
-        // ignore revert error
-      }
-    };
-  } catch {
-    barElement.style.width = "0%";
-  }
-}
-
-/**
  * Effect 2: Staggered section reveal
  * Elements with data-reveal fade and rise 12 px once when they enter,
  * with a 60 ms stagger among siblings.

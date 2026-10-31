@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, navigate } from "../router";
+import { Link, navigate, useRoute } from "../router";
 import { getHealth } from "../api";
 import type { Health } from "../types";
-import { initScrollProgressBar } from "../motion/anime";
+import { isReducedMotion } from "../motion/anime";
 import { UserMenu } from "../auth/UserMenu";
 
 export const prefetchChecker = () => {
@@ -19,16 +19,16 @@ interface MarketingShellProps {
 }
 
 export function MarketingShell({ children, notFound }: MarketingShellProps) {
+  const route = useRoute();
+  const isHomePage = route.name === "landing";
+  const isExamplesRoute = route.name === "examples";
+
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(isHomePage ? "product" : null);
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const progressBarRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    return initScrollProgressBar(progressBarRef.current);
-  }, []);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealthErr(true));
@@ -43,6 +43,69 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Section observer & scroll position syncing for in-page navigation on the landing page
+  useEffect(() => {
+    if (!isHomePage) {
+      setActiveSection(null);
+      return;
+    }
+
+    const sectionIds = ["product", "dimensions", "limits", "faq"];
+    let rafId: number | null = null;
+
+    const computeActiveSection = () => {
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+
+      // 1. If at the top of the page, Product is always active
+      if (scrollY < 120) {
+        setActiveSection("product");
+        return;
+      }
+
+      // 2. If scrolled near the bottom, activate the lowest section (FAQ)
+      if (scrollY + clientHeight >= scrollHeight - 60) {
+        setActiveSection("faq");
+        return;
+      }
+
+      // 3. Find the current section passed below the sticky header offset
+      const headerOffset = 90;
+      let current = "product";
+      for (const id of sectionIds) {
+        const el = document.getElementById(id);
+        if (el) {
+          const top = el.getBoundingClientRect().top;
+          if (top <= headerOffset) {
+            current = id;
+          }
+        }
+      }
+      setActiveSection(current);
+    };
+
+    const onScrollOrResize = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        computeActiveSection();
+        rafId = null;
+      });
+    };
+
+    window.addEventListener("scroll", onScrollOrResize, { passive: true });
+    window.addEventListener("resize", onScrollOrResize, { passive: true });
+    computeActiveSection();
+
+    return () => {
+      window.removeEventListener("scroll", onScrollOrResize);
+      window.removeEventListener("resize", onScrollOrResize);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [isHomePage, route.path]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && menuOpen) {
@@ -54,25 +117,31 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [menuOpen]);
 
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, hash: string) => {
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     e.preventDefault();
     setMenuOpen(false);
-    if (hash === "product" || hash === "") {
-      if (window.location.pathname === "/" || window.location.pathname === "") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+
+    if (isHomePage) {
+      if (sectionId === "product") {
+        window.scrollTo({ top: 0, behavior: isReducedMotion() ? "auto" : "smooth" });
         window.history.pushState(null, "", "/");
+        setActiveSection("product");
         return;
       }
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: isReducedMotion() ? "auto" : "smooth" });
+        window.history.pushState(null, "", `#${sectionId}`);
+        setActiveSection(sectionId);
+        return;
+      }
+    }
+
+    if (sectionId === "product") {
       navigate("/");
-      return;
+    } else {
+      navigate(`/#${sectionId}`);
     }
-    const el = document.getElementById(hash);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-      window.history.pushState(null, "", `#${hash}`);
-      return;
-    }
-    navigate(`/#${hash}`);
   };
 
   const mode = health ? (health.llm_configured ? "llm" : "rules") : "";
@@ -97,35 +166,35 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
             <a
               href="#product"
               onClick={(e) => handleNavClick(e, "product")}
-              className={typeof window !== "undefined" && window.location.pathname === "/" && (!window.location.hash || window.location.hash === "#product") ? "active" : ""}
+              className={isHomePage && activeSection === "product" ? "active" : ""}
             >
               Product
             </a>
             <a
               href="#dimensions"
               onClick={(e) => handleNavClick(e, "dimensions")}
-              className={typeof window !== "undefined" && window.location.hash === "#dimensions" ? "active" : ""}
+              className={isHomePage && activeSection === "dimensions" ? "active" : ""}
             >
               7 Dimensions
             </a>
             <Link
               href="/examples"
               prefetch={prefetchExamples}
-              className={typeof window !== "undefined" && window.location.pathname === "/examples" ? "active" : ""}
+              className={isExamplesRoute ? "active" : ""}
             >
               Examples
             </Link>
             <a
               href="#limits"
               onClick={(e) => handleNavClick(e, "limits")}
-              className={typeof window !== "undefined" && window.location.hash === "#limits" ? "active" : ""}
+              className={isHomePage && activeSection === "limits" ? "active" : ""}
             >
               Limits
             </a>
             <a
               href="#faq"
               onClick={(e) => handleNavClick(e, "faq")}
-              className={typeof window !== "undefined" && window.location.hash === "#faq" ? "active" : ""}
+              className={isHomePage && activeSection === "faq" ? "active" : ""}
             >
               FAQ
             </a>
@@ -166,14 +235,14 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
               <a
                 href="#product"
                 onClick={(e) => handleNavClick(e, "product")}
-                className={typeof window !== "undefined" && window.location.pathname === "/" && (!window.location.hash || window.location.hash === "#product") ? "active" : ""}
+                className={isHomePage && activeSection === "product" ? "active" : ""}
               >
                 Product
               </a>
               <a
                 href="#dimensions"
                 onClick={(e) => handleNavClick(e, "dimensions")}
-                className={typeof window !== "undefined" && window.location.hash === "#dimensions" ? "active" : ""}
+                className={isHomePage && activeSection === "dimensions" ? "active" : ""}
               >
                 7 Dimensions
               </a>
@@ -181,21 +250,21 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
                 href="/examples"
                 onClick={() => setMenuOpen(false)}
                 prefetch={prefetchExamples}
-                className={typeof window !== "undefined" && window.location.pathname === "/examples" ? "active" : ""}
+                className={isExamplesRoute ? "active" : ""}
               >
                 Examples
               </Link>
               <a
                 href="#limits"
                 onClick={(e) => handleNavClick(e, "limits")}
-                className={typeof window !== "undefined" && window.location.hash === "#limits" ? "active" : ""}
+                className={isHomePage && activeSection === "limits" ? "active" : ""}
               >
                 Limits
               </a>
               <a
                 href="#faq"
                 onClick={(e) => handleNavClick(e, "faq")}
-                className={typeof window !== "undefined" && window.location.hash === "#faq" ? "active" : ""}
+                className={isHomePage && activeSection === "faq" ? "active" : ""}
               >
                 FAQ
               </a>
@@ -213,7 +282,6 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
             </div>
           </div>
         )}
-        <div ref={progressBarRef} className="scroll-progress-bar" id="scroll-progress" aria-hidden="true" />
       </nav>
 
       {notFound && (

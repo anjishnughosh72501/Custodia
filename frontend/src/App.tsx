@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { lazyWithRetry } from "./lazyWithRetry";
 import { pingServer } from "./api";
 import { AuthProvider } from "./auth/AuthContext";
+import { CustomScrollbar } from "./components/CustomScrollbar";
 
 const Checker = lazyWithRetry(() => import("./pages/Checker"));
 const Examples = lazyWithRetry(() => import("./pages/Examples"));
@@ -95,6 +96,7 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
+      <CustomScrollbar />
       <AppContent />
     </AuthProvider>
   );

@@ -24,10 +24,26 @@
   --dur-3: 500ms;
   --dur-4: 800ms;
   --stagger: 60ms;
+  --grid-pattern: 
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
+  --grid-size: 28px 28px;
+  --grid-position: -1px -1px;
+  --scroll-blue: #1E4E79;
   color-scheme: light;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge */
+  width: 0 !important;
+  height: 0 !important;
+}
 body { margin: 0; background: var(--ivory); color: var(--ink); font: 400 16px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
 button, textarea { font: inherit; color: inherit; }
 h1, h2, h3, p { margin: 0; }
@@ -37,18 +53,54 @@ h1, h2, h3, p { margin: 0; }
 .shell { max-width: 1160px; margin: 0 auto; padding: 0 24px 96px; }
 @media (max-width: 640px) { .shell { padding: 0 16px 72px; } }
 
+/* ---------- Custom Scrollbar (Neobrutalist blue-on-grid) ---------- */
+.custom-scrollbar-track {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 90;
+  background-color: transparent;
+  background-image: var(--grid-pattern);
+  background-size: var(--grid-size);
+  background-position: var(--grid-position);
+  background-attachment: fixed;
+  border-left: 2px solid var(--ink);
+  box-sizing: border-box;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.custom-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  background-color: var(--scroll-blue);
+  border: 2px solid var(--ink);
+  border-radius: 2px;
+  box-sizing: border-box;
+  cursor: grab;
+  touch-action: none;
+}
+
+.custom-scrollbar-thumb:active,
+.custom-scrollbar-thumb.dragging {
+  cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-scrollbar-thumb {
+    transition: none !important;
+  }
+}
+
 /* ---------- shell & navigation ---------- */
 .marketing-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .landing-main { flex: 1 0 auto; width: 100%; }
-.scroll-progress-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 3px;
-  width: 0%;
-  background: var(--ink);
-  pointer-events: none;
-}
 
 .app-shell { min-height: 100vh; display: flex; flex-direction: column; }
 .shell-main { flex: 1 0 auto; }
@@ -389,11 +441,9 @@ html.js .reveal-item.revealed {
   position: relative;
   padding: 48px 24px 28px;
   background-color: var(--ivory);
-  background-image: 
-    linear-gradient(var(--rule) 1px, transparent 1px),
-    linear-gradient(90deg, var(--rule) 1px, transparent 1px);
-  background-size: 28px 28px;
-  background-position: -1px -1px;
+  background-image: var(--grid-pattern);
+  background-size: var(--grid-size);
+  background-position: var(--grid-position);
   mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000 65%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000 65%, transparent 100%);
 }
