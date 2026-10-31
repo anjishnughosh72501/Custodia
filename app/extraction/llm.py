@@ -3,7 +3,6 @@ Everything it returns is validated and re-checked by deterministic code. Evidenc
 from __future__ import annotations
 import datetime
 import json
-import logging
 import re
 import threading
 import uuid
@@ -11,10 +10,8 @@ from typing import Optional
 import httpx
 from pydantic import BaseModel, Field, ValidationError
 from ..models import Frame
-from . import parsers as P
 from .frame import build_frame
 
-log = logging.getLogger("custodia")
 LEVELS = {"observed", "generalized", "universal", "superlative"}
 
 

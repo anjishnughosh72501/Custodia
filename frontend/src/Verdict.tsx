@@ -6,7 +6,7 @@ import { Icon, statusTone, verdictTone } from "./ui";
 const MODE_INFO: Record<string, { label: string; tooltip: string; tone?: "warn" }> = {
   llm: {
     label: "Model-assisted",
-    tooltip: "Claude proposes verbatim quotes; deterministic Python code decides the verdict.",
+    tooltip: "Model proposes verbatim quotes; deterministic Python code decides the verdict.",
   },
   heuristic: {
     label: "Rule-based",
