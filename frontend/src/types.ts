@@ -37,6 +37,18 @@ export interface Review {
   claim_text: string; evidence_text: string; comparisons: Comparison[]; language_risks: LanguageRisk[]; language_review: string;
   verdict: Verdict; rewrite: RewriteResult | null; nli?: NliDiagnostic | null;
   delete_token?: string;
+  user_id?: string | null;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  created_at?: string;
+}
+
+export interface Usage {
+  signed_in: boolean;
+  free_checks_remaining: number | null;
 }
 export interface Health {
   status: string;

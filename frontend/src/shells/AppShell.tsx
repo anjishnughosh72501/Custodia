@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "../router";
 import { getHealth } from "../api";
 import type { Health } from "../types";
+import { UserMenu } from "../auth/UserMenu";
 
 interface AppShellProps {
   children: ReactNode;
@@ -92,6 +93,8 @@ export function AppShell({
                 <span>⌘K</span>
               </button>
             )}
+
+            <UserMenu />
 
             <div
               className={`mode ${mode} app-bar-mode`}

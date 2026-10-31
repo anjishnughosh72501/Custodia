@@ -394,7 +394,10 @@ Custodia supports two deployment architectures:
    - **Offline Fallback**: If the server is sleeping, 16 pre-bundled illustrative scenarios load immediately from `examples.generated.json`.
    - **Keep-Warm Tip**: Set up a free 10-minute cron ping (e.g. via UptimeRobot or cron-job.org) targeting `https://<your-render-service>.onrender.com/api/ping`.
 
-### Option B: Single-Service Docker (FastAPI serving built React SPA)
+### Option B: Single-Service Docker (FastAPI serving built React SPA) — Supported Path
+
+> [!IMPORTANT]
+> **Authentication & Cookie Architecture**: Custodia uses HttpOnly, SameSite=Lax session cookies. A cross-domain split deployment (such as Vercel on vercel.app and Render on onrender.com) will not share first-party authentication cookies without custom matching domains. Therefore, **the single-container Docker image (or reverse-proxied same-origin deployment) is the supported production path**.
 
 To run everything in a single self-contained container:
 ```bash
@@ -402,9 +405,21 @@ To run everything in a single self-contained container:
 docker build -t custodia .
 
 # Run container (exposes port 8000)
-docker run -p 8000:8000 -v custodia_data:/data custodia
+docker run -p 8000:8000 -e CUSTODIA_SECRET="your-strong-random-secret" -e CUSTODIA_ENV="prod" -v custodia_data:/data custodia
 ```
 FastAPI serves both the API endpoints (`/api/*`) and the built React frontend (`/*`) with client-side SPA fallback.
+
+---
+
+## Authentication & One-Free-Check Gate
+
+- **One Free Check**: Every anonymous visitor receives exactly one free claim check. Subsequent checks require signing up or logging in.
+- **Draft Preservation**: When the auth gate triggers (`SIGNUP_REQUIRED`), the user's current draft (claim and evidence) is retained and restored after authentication.
+- **Anonymous Review Linking**: Any review conducted anonymously prior to login or signup is automatically linked to the user's account upon authentication.
+- **Argon2 Password Security**: Passwords use `argon2-cffi` (minimum 10 characters, maximum 128 characters) with dummy hash execution on non-existent accounts to eliminate timing side-channels.
+- **Email Verification Note & Risk**:
+  > [!WARNING]
+  > **No Email Verification in Current Release**: Custodia does not currently verify email addresses via outgoing confirmation emails (no transactional email service configured). Users should be aware that any user can register with any syntactically valid email address. Full email verification with token links is planned in a future update once an SMTP/email delivery provider (such as Resend or SendGrid) is connected.
 
 ---
 

@@ -2,8 +2,8 @@
 
 ## Team and Contact
 
-- **Team**: `<TEAM_NAMES>`
-- **Contact Email**: `<CONTACT_EMAIL>`
+- **Team**: Aryan, Anjishnu, and Ananya
+- **Contact Email**: contact@custodia.dev
 - **Repository**: [https://github.com/anjishnughosh72501/Custodia](https://github.com/anjishnughosh72501/Custodia)
 - **Live Frontend (Vercel)**: `<FRONTEND_VERCEL_URL_PLACEHOLDER>`
 - **Live Backend (Render)**: `<BACKEND_RENDER_URL_PLACEHOLDER>`

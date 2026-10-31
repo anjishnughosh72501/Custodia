@@ -1,6 +1,10 @@
 import os
 os.environ["CUSTODIA_DB"] = ":memory:"
 os.environ["SCOPELOCK_DB"] = ":memory:"
+os.environ["CUSTODIA_FREE_CHECKS"] = "0"
+os.environ["CUSTODIA_ENV"] = "test"
+os.environ["CUSTODIA_SECRET"] = "conftest-test-secret-key-32-chars-long!"
+
 import pytest
 from fastapi.testclient import TestClient
 from app.extraction.heuristic import HeuristicExtractor

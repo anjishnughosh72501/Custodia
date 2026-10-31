@@ -187,7 +187,7 @@ class ReviewService:
 
         return diag
 
-    def review(self, claim_text: str, evidence_text: str) -> Review:
+    def review(self, claim_text: str, evidence_text: str, user_id: Optional[str] = None) -> Review:
         warnings: list[str] = []
         delete_token = secrets.token_urlsafe(16)
         injection = instruction_like(evidence_text) or instruction_like(claim_text)
@@ -274,8 +274,9 @@ class ReviewService:
                         extractor_mode="heuristic_fallback" if degraded else self.configured_mode,
                         degraded=degraded, warnings=warnings, claim_text=claim_text, evidence_text=evidence_text,
                         claim_frame=cf, evidence_frame=ef, comparisons=comparisons, language_risks=risks,
-                        language_review=language_review, verdict=verdict, nli=nli_diag, delete_token=delete_token)
-        self.store.save(review, delete_token=delete_token, retention_days=self.retention_days)
+                        language_review=language_review, verdict=verdict, nli=nli_diag, delete_token=delete_token,
+                        user_id=user_id)
+        self.store.save(review, delete_token=delete_token, retention_days=self.retention_days, user_id=user_id)
         # Log metadata only: never the claim or evidence text.
         log.info("review id=%s verdict=%s mode=%s degraded=%s claim_chars=%d evidence_chars=%d risks=%d nli=%s",
                  review.id, verdict.status.value, review.extractor_mode, degraded, len(claim_text), len(evidence_text),

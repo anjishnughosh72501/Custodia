@@ -3,6 +3,7 @@ import { Link, navigate } from "../router";
 import { getHealth } from "../api";
 import type { Health } from "../types";
 import { initScrollProgressBar } from "../motion/anime";
+import { UserMenu } from "../auth/UserMenu";
 
 export const prefetchChecker = () => {
   import("../pages/Checker");
@@ -130,7 +131,8 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
             </a>
           </div>
 
-          <div className="shell-nav-actions desktop-only">
+          <div className="shell-nav-actions desktop-only" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <UserMenu />
             <Link
               href="/check"
               className="btn primary small nav-cta"
@@ -197,6 +199,9 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
               >
                 FAQ
               </a>
+              <div style={{ padding: "8px 0" }}>
+                <UserMenu />
+              </div>
               <Link
                 href="/check"
                 className="btn primary mobile-cta"
@@ -304,17 +309,34 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
               <div className="footer-col">
                 <h4>Team</h4>
                 <ul>
-                  <li>Aryan · Engineering & UI</li>
-                  <li>Anjishnu · Rules & Pipeline</li>
-                  <li>Ananya · QA & Evaluation</li>
+                  <li>
+                    <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
+                      Aryan · Engineering & UI
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://github.com/anjishnughosh72501" target="_blank" rel="noopener noreferrer">
+                      Anjishnu · Rules & Pipeline
+                    </a>
+                  </li>
+                  <li>
+                    <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
+                      Ananya · QA & Evaluation
+                    </a>
+                  </li>
                 </ul>
               </div>
             </div>
           </div>
 
           <div className="footer-bottom">
-            <p style={{ marginBottom: "8px", fontWeight: 500 }}>
-              Built for the hackathon by &lt;TEAM_NAMES&gt;. Contact: <a href="mailto:<CONTACT_EMAIL>">&lt;CONTACT_EMAIL&gt;</a>
+            <p className="footer-bottom-meta">
+              Built for the hackathon by Aryan, Anjishnu, and Ananya. Contact:{" "}
+              <a href="mailto:contact@custodia.dev">contact@custodia.dev</a>{" "}
+              ·{" "}
+              <a href="https://github.com/anjishnughosh72501/Custodia/issues" target="_blank" rel="noopener noreferrer">
+                GitHub Issues
+              </a>
             </p>
             <p>
               Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge

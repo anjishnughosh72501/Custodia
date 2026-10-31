@@ -8,8 +8,8 @@
 - **Live Frontend (Vercel)**: `<FRONTEND_VERCEL_URL_PLACEHOLDER>`
 - **Live Backend (Render)**: `<BACKEND_RENDER_URL_PLACEHOLDER>`
 - **Demo Video URL**: `<DEMO_VIDEO_URL_PLACEHOLDER>`
-- **Team**: `<TEAM_NAMES>`
-- **Contact Email**: `<CONTACT_EMAIL>`
+- **Team**: Aryan, Anjishnu, and Ananya
+- **Contact Email**: contact@custodia.dev
 
 ---
 

@@ -55,6 +55,26 @@ describe("router parseRoute", () => {
     expect(r.exampleId).toBeUndefined();
   });
 
+  it("matches login path and preserves redirect param", () => {
+    const r = parseRoute("/login?redirect=/check");
+    expect(r.name).toBe("login");
+    expect(r.redirect).toBe("/check");
+    expect(r.notFound).toBeFalsy();
+  });
+
+  it("matches signup path and preserves redirect param", () => {
+    const r = parseRoute("/signup?redirect=/check");
+    expect(r.name).toBe("signup");
+    expect(r.redirect).toBe("/check");
+    expect(r.notFound).toBeFalsy();
+  });
+
+  it("matches my-checks path", () => {
+    const r = parseRoute("/my-checks");
+    expect(r.name).toBe("my-checks");
+    expect(r.notFound).toBeFalsy();
+  });
+
   it("marks unknown path as landing with notFound", () => {
     const r = parseRoute("/unknown-page");
     expect(r.name).toBe("landing");

@@ -1,4 +1,4 @@
-import type { Example, Health, Review, RewriteResult } from "./types";
+import type { Example, Health, Review, RewriteResult, Usage, User } from "./types";
 import { normalizeReview } from "./reviewShape";
 
 export { normalizeReview };
@@ -16,6 +16,7 @@ async function call<T>(path: string, init?: RequestInit, timeoutMs = 45000): Pro
   try {
     const res = await fetch(url, {
       ...init,
+      credentials: "include",
       signal: ctl.signal,
       headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
@@ -40,7 +41,6 @@ export const pingServer = async (): Promise<boolean> => {
     await call<{ ok: boolean }>("/api/ping", undefined, 5000);
     return true;
   } catch {
-    // Retry once on failure
     try {
       await call<{ ok: boolean }>("/api/ping", undefined, 5000);
       return true;
@@ -75,7 +75,6 @@ export const createReview = async (claim_text: string, evidence_text: string): P
   if (!normalized) {
     throw new ApiError("INVALID_RESPONSE", "The server returned an unrecognised review format.");
   }
-  // Preserve delete_token from raw response if provided
   if (raw && typeof raw === "object" && typeof (raw as Record<string, unknown>).delete_token === "string") {
     normalized.delete_token = (raw as Record<string, unknown>).delete_token as string;
   }
@@ -91,3 +90,46 @@ export const deleteReview = async (id: string, deleteToken: string): Promise<voi
 
 export const requestRewrite = (id: string, candidate_text?: string) =>
   call<RewriteResult>(`/api/reviews/${id}/rewrite`, { method: "POST", body: JSON.stringify(candidate_text === undefined ? {} : { candidate_text }) });
+
+// Authentication & Usage API
+export const getMe = async (): Promise<User | null> => {
+  const res = await call<{ user: User | null }>("/api/auth/me", undefined, 8000);
+  return res.user;
+};
+
+export const getUsage = async (): Promise<Usage> => {
+  return call<Usage>("/api/usage", undefined, 8000);
+};
+
+export const signup = async (email: string, password: string, review_ids: string[] = []): Promise<User> => {
+  const res = await call<{ user: User }>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password, review_ids }),
+  });
+  return res.user;
+};
+
+export const login = async (email: string, password: string, review_ids: string[] = []): Promise<User> => {
+  const res = await call<{ user: User }>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password, review_ids }),
+  });
+  return res.user;
+};
+
+export const demoLogin = async (review_ids: string[] = []): Promise<User> => {
+  const res = await call<{ user: User }>("/api/auth/demo", {
+    method: "POST",
+    body: JSON.stringify({ review_ids }),
+  });
+  return res.user;
+};
+
+export const logout = async (): Promise<void> => {
+  await call<{ ok: boolean }>("/api/auth/logout", { method: "POST" });
+};
+
+export const getMyReviews = async (): Promise<Review[]> => {
+  const res = await call<{ reviews: unknown[] }>("/api/reviews/mine");
+  return (res.reviews || []).map(normalizeReview).filter(Boolean) as Review[];
+};

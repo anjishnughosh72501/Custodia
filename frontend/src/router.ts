@@ -2,9 +2,10 @@ import React, { useEffect, useState, type MouseEvent, type ReactNode } from "rea
 import { transitionRoute } from "./motion/viewTransition";
 
 export interface Route {
-  name: "landing" | "checker" | "review" | "examples";
+  name: "landing" | "checker" | "review" | "examples" | "login" | "signup" | "my-checks";
   reviewId?: string;
   exampleId?: string;
+  redirect?: string;
   notFound?: boolean;
   path: string;
 }
@@ -13,6 +14,7 @@ export function parseRoute(pathWithQuery: string): Route {
   const [pathname, search = ""] = pathWithQuery.split("?");
   const params = new URLSearchParams(search);
   const exampleId = params.get("example") || undefined;
+  const redirect = params.get("redirect") || undefined;
 
   if (pathname === "" || pathname === "/") {
     return { name: "landing", exampleId, path: pathWithQuery };
@@ -22,6 +24,15 @@ export function parseRoute(pathWithQuery: string): Route {
   }
   if (pathname === "/examples") {
     return { name: "examples", exampleId, path: pathWithQuery };
+  }
+  if (pathname === "/login") {
+    return { name: "login", redirect, path: pathWithQuery };
+  }
+  if (pathname === "/signup") {
+    return { name: "signup", redirect, path: pathWithQuery };
+  }
+  if (pathname === "/my-checks") {
+    return { name: "my-checks", path: pathWithQuery };
   }
   if (pathname.startsWith("/r/")) {
     const id = pathname.slice(3).trim();

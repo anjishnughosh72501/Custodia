@@ -24,6 +24,9 @@ import { FitRing, FitRingSkeleton } from "../checker/FitRing";
 import { VERDICT_TITLE } from "../labels";
 import { DIMENSIONS, type Example, type Health, type Review, type RewriteResult } from "../types";
 import STATIC_EXAMPLES from "../examples.generated.json";
+import { useAuth } from "../auth/AuthContext";
+import { AuthGate } from "../auth/AuthGate";
+import { getStoredDraft, saveStoredDraft } from "../checker/useDraft";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -59,6 +62,8 @@ export function VerdictSkeleton() {
 }
 
 export default function Checker({ exampleId, reviewId }: CheckerProps) {
+  const { user, usage, refreshUsage } = useAuth();
+  const [authGateOpen, setAuthGateOpen] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [examples, setExamples] = useState<Example[]>(STATIC_EXAMPLES as Example[]);
   const [activeExample, setActiveExample] = useState<string | null>(null);
@@ -101,7 +106,16 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Update document title with verdict, restore on leave
+  // Restore draft on mount if fields are empty and no specific example or review is requested
+  useEffect(() => {
+    if (!reviewId && !exampleId && !claim.trim() && !evidence.trim()) {
+      const saved = getStoredDraft();
+      if (saved) {
+        setClaim(saved.claim);
+        setEvidence(saved.evidence);
+      }
+    }
+  }, [reviewId, exampleId]);
   useEffect(() => {
     const prevTitle = document.title;
     if (review) {
@@ -386,6 +400,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     try {
       const r = await createReview(claim, evidence);
       setReview(r);
+      refreshUsage();
       if (r.id && r.delete_token) {
         try {
           localStorage.setItem(`custodia_delete_${r.id}`, r.delete_token);
@@ -412,11 +427,17 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         }
       }, 60);
     } catch (e) {
+      if (e instanceof ApiError && e.code === "SIGNUP_REQUIRED") {
+        saveStoredDraft(claim, evidence);
+        setAuthGateOpen(true);
+        refreshUsage();
+        return;
+      }
       setError(e instanceof ApiError ? e.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [claim, evidence, limits, addItem]);
+  }, [claim, evidence, limits, addItem, refreshUsage]);
 
   const reset = () => {
     setClaim("");
@@ -425,6 +446,17 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     setActiveExample(null);
     clearResults();
     navigate("/check");
+  };
+
+  const handleAuthGateSuccess = () => {
+    setAuthGateOpen(false);
+    refreshUsage();
+    const saved = getStoredDraft();
+    if (saved) {
+      setClaim(saved.claim);
+      setEvidence(saved.evidence);
+    }
+    addToast("Signed in successfully. Your draft is restored.", "ok");
   };
 
   const loadExample = (e: Example) => {
@@ -585,6 +617,44 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                 >
                   <span className="spin" aria-hidden="true" style={{ marginRight: 8, display: "inline-block" }} />
                   <span>Waking the server (free hosting sleeps when idle). This can take up to a minute.</span>
+                </div>
+              )}
+
+              {!user && (
+                <div className="free-check-status-wrap" style={{ marginBottom: 20 }}>
+                  {usage?.free_checks_remaining === 0 ? (
+                    <div className="banner warn" role="alert" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px" }}>
+                      <div>
+                        <b>Sign up to keep checking.</b> You've used your 1 free check without an account.
+                      </div>
+                      <button
+                        type="button"
+                        className="btn small primary"
+                        onClick={() => setAuthGateOpen(true)}
+                        style={{ marginLeft: 12, flexShrink: 0 }}
+                      >
+                        Sign up / Log in
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      className="free-check-pill"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "6px 14px",
+                        borderRadius: "20px",
+                        backgroundColor: "rgba(47, 127, 121, 0.12)",
+                        color: "var(--teal, #2F7F79)",
+                        fontSize: "0.85rem",
+                        fontWeight: 650,
+                      }}
+                    >
+                      <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "var(--teal, #2F7F79)" }} />
+                      1 free check left
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -793,6 +863,12 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         <ShortcutSheet
           isOpen={shortcutsOpen}
           onClose={() => setShortcutsOpen(false)}
+        />
+
+        <AuthGate
+          isOpen={authGateOpen}
+          onClose={() => setAuthGateOpen(false)}
+          onSuccess={handleAuthGateSuccess}
         />
       </AppShell>
     </ErrorBoundary>

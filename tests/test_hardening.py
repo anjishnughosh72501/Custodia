@@ -37,9 +37,9 @@ def test_rate_limiter_x_forwarded_for_separate_buckets():
     assert res_a3.status_code == 429
     assert res_a3.json()["error"]["code"] == "RATE_LIMITED"
 
-    # Client B: with different X-Forwarded-For first hop, still has budget!
+    # Forged X-Forwarded-For header does NOT bypass the limit because request.client.host is used
     res_b1 = client.post("/api/reviews", json={"claim_text": "CB1", "evidence_text": "EB1"}, headers={"X-Forwarded-For": "198.51.100.5, 10.0.0.1"})
-    assert res_b1.status_code == 201
+    assert res_b1.status_code == 429
 
 
 def test_rate_limiter_prunes_empty_deques():

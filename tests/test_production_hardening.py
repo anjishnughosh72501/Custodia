@@ -105,10 +105,10 @@ def test_proxy_ip_x_forwarded_for():
     assert r2.status_code in (201, 400)
     assert r3.status_code == 429
 
-    # Different client IP should not be blocked
+    # Forged X-Forwarded-For should not bypass rate limiting
     r_diff = client.post("/api/reviews", json={"claim_text": "A", "evidence_text": "B"},
                          headers={"x-forwarded-for": "198.51.100.1, 70.41.3.18"})
-    assert r_diff.status_code in (201, 400)
+    assert r_diff.status_code == 429
 
 
 def test_bounded_rate_limiter_key_capping():

@@ -127,6 +127,22 @@ class Review(BaseModel):
     rewrite: Optional[RewriteResult] = None
     nli: Optional[NliDiagnostic] = None
     delete_token: Optional[str] = None
+    user_id: Optional[str] = None
+
+
+class User(BaseModel):
+    id: str
+    email: str
+    created_at: str
+
+
+class AuthResponse(BaseModel):
+    user: Optional[User] = None
+
+
+class UsageResponse(BaseModel):
+    signed_in: bool
+    free_checks_remaining: Optional[int] = None
 
 
 class ReviewRequest(BaseModel):

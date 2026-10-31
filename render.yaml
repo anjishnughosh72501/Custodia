@@ -20,6 +20,12 @@ services:
         value: "500"
       - key: CUSTODIA_RETENTION_DAYS
         value: "30"
+      - key: CUSTODIA_SECRET
+        generateValue: true # Generates secure random secret for signed cookies
+      - key: CUSTODIA_ENV
+        value: "prod"
+      - key: CUSTODIA_FREE_CHECKS
+        value: "1"
       - key: CUSTODIA_CORS_ORIGINS
         sync: false        # Set to your Vercel URL, e.g. https://<app>.vercel.app
       - key: DATABASE_URL

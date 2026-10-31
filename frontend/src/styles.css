@@ -335,6 +335,22 @@ section[id], .section[id] {
   line-height: 1.6;
   max-width: 82ch;
 }
+.footer-bottom-meta {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.footer-bottom a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule);
+  transition: color var(--dur-1) var(--ease-out), text-decoration-color var(--dur-1) var(--ease-out);
+}
+.footer-bottom a:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink);
+}
 
 /* ---------- landing layout & sections ---------- */
 .landing-shell .section { margin-top: 96px; }

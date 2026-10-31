@@ -19,10 +19,16 @@ DEFAULT_RETENTION_DAYS = 30
 
 
 class BaseStore(abc.ABC):
-    """Abstract interface for Custodia review storage."""
+    """Abstract interface for Custodia review storage, user authentication, and rate tracking."""
 
     @abc.abstractmethod
-    def save(self, review: Review, delete_token: Optional[str] = None, retention_days: int = DEFAULT_RETENTION_DAYS) -> None:
+    def save(
+        self,
+        review: Review,
+        delete_token: Optional[str] = None,
+        retention_days: int = DEFAULT_RETENTION_DAYS,
+        user_id: Optional[str] = None,
+    ) -> None:
         """Saves a review along with optional hashed delete token and expiration timestamp."""
         pass
 
@@ -41,16 +47,76 @@ class BaseStore(abc.ABC):
         """Purges all expired reviews and returns count of pruned records."""
         pass
 
+    @abc.abstractmethod
+    def create_user(self, user_id: str, email: str, password_hash: str) -> dict:
+        """Creates a new user record."""
+        pass
+
+    @abc.abstractmethod
+    def get_user_by_email(self, email: str) -> Optional[dict]:
+        """Fetches a user by normalized lowercase email."""
+        pass
+
+    @abc.abstractmethod
+    def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        """Fetches a user by user_id."""
+        pass
+
+    @abc.abstractmethod
+    def create_session(self, id_hash: str, user_id: str, expires_at: datetime.datetime) -> None:
+        """Creates an authenticated session."""
+        pass
+
+    @abc.abstractmethod
+    def get_session(self, id_hash: str) -> Optional[dict]:
+        """Retrieves an active session if not expired."""
+        pass
+
+    @abc.abstractmethod
+    def delete_session(self, id_hash: str) -> None:
+        """Revokes a session by token hash."""
+        pass
+
+    @abc.abstractmethod
+    def purge_expired_sessions(self) -> int:
+        """Purges expired sessions."""
+        pass
+
+    @abc.abstractmethod
+    def get_anon_usage(self, anon_id: str) -> int:
+        """Returns checks_used for an anonymous token."""
+        pass
+
+    @abc.abstractmethod
+    def get_ip_usage(self, ip_hash: str) -> int:
+        """Returns cumulative checks used across this IP hash."""
+        pass
+
+    @abc.abstractmethod
+    def increment_anon_usage(self, anon_id: str, ip_hash: str) -> int:
+        """Increments usage counter for an anonymous token."""
+        pass
+
+    @abc.abstractmethod
+    def attach_reviews_to_user(self, user_id: str, review_ids: list[str]) -> int:
+        """Attaches unclaimed anonymous reviews to an authenticated user account."""
+        pass
+
+    @abc.abstractmethod
+    def get_user_reviews(self, user_id: str) -> list[Review]:
+        """Returns reviews owned by a user."""
+        pass
+
 
 class SqliteStore(BaseStore):
-    """SQLite-backed review store."""
+    """SQLite-backed review and user store."""
 
     def __init__(self, path: str = "custodia.db"):
         self.path = path
         self._db = sqlite3.connect(path, check_same_thread=False)
         self._lock = threading.Lock()
         with self._lock:
-            # Create reviews table with created_at, expires_at, delete_token_hash
+            # Reviews table with created_at, expires_at, delete_token_hash, user_id
             self._db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS reviews (
@@ -58,11 +124,11 @@ class SqliteStore(BaseStore):
                     body TEXT NOT NULL,
                     created_at TIMESTAMP,
                     expires_at TIMESTAMP,
-                    delete_token_hash TEXT
+                    delete_token_hash TEXT,
+                    user_id TEXT
                 )
                 """
             )
-            # Ensure columns exist if table was created in older schema
             cols = [row[1] for row in self._db.execute("PRAGMA table_info(reviews)").fetchall()]
             if "created_at" not in cols:
                 self._db.execute("ALTER TABLE reviews ADD COLUMN created_at TIMESTAMP")
@@ -70,27 +136,80 @@ class SqliteStore(BaseStore):
                 self._db.execute("ALTER TABLE reviews ADD COLUMN expires_at TIMESTAMP")
             if "delete_token_hash" not in cols:
                 self._db.execute("ALTER TABLE reviews ADD COLUMN delete_token_hash TEXT")
+            if "user_id" not in cols:
+                self._db.execute("ALTER TABLE reviews ADD COLUMN user_id TEXT")
+
+            # Users table
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    email TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+
+            # Sessions table
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id_hash TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+
+            # Anon usage table
+            # NOTE: Clearing cookies is a known bypass; the IP counter only slows it down.
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS anon_usage (
+                    anon_id TEXT PRIMARY KEY,
+                    checks_used INTEGER NOT NULL DEFAULT 0,
+                    ip_hash TEXT,
+                    created_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews (user_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_anon_usage_ip_hash ON anon_usage (ip_hash)")
             self._db.commit()
 
         # Purge expired on startup
         self.purge_expired()
+        self.purge_expired_sessions()
 
     def _now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.timezone.utc)
 
-    def save(self, review: Review, delete_token: Optional[str] = None, retention_days: int = DEFAULT_RETENTION_DAYS) -> None:
+    def save(
+        self,
+        review: Review,
+        delete_token: Optional[str] = None,
+        retention_days: int = DEFAULT_RETENTION_DAYS,
+        user_id: Optional[str] = None,
+    ) -> None:
         now = self._now()
         expires = now + datetime.timedelta(days=retention_days)
         tok_hash = hashlib.sha256(delete_token.encode("utf-8")).hexdigest() if delete_token else None
+        target_uid = user_id if user_id is not None else review.user_id
+        review.user_id = target_uid
         body = review.model_dump_json()
 
         with self._lock:
             self._db.execute(
                 """
-                INSERT OR REPLACE INTO reviews (id, body, created_at, expires_at, delete_token_hash)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO reviews (id, body, created_at, expires_at, delete_token_hash, user_id)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (review.id, body, now.isoformat(), expires.isoformat(), tok_hash),
+                (review.id, body, now.isoformat(), expires.isoformat(), tok_hash, target_uid),
             )
             self._db.commit()
 
@@ -98,20 +217,22 @@ class SqliteStore(BaseStore):
         now_iso = self._now().isoformat()
         with self._lock:
             row = self._db.execute(
-                "SELECT body, expires_at FROM reviews WHERE id = ?", (review_id,)
+                "SELECT body, expires_at, user_id FROM reviews WHERE id = ?", (review_id,)
             ).fetchone()
 
             if not row:
                 return None
 
-            body, expires_at = row[0], row[1]
+            body, expires_at, user_id = row[0], row[1], row[2]
             if expires_at and expires_at < now_iso:
                 # Expired -> prune lazily
                 self._db.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
                 self._db.commit()
                 return None
 
-        return Review.model_validate_json(body)
+        review = Review.model_validate_json(body)
+        review.user_id = user_id
+        return review
 
     def delete(self, review_id: str, delete_token: str) -> tuple[bool, str]:
         expected_hash = hashlib.sha256(delete_token.encode("utf-8")).hexdigest()
@@ -148,9 +269,156 @@ class SqliteStore(BaseStore):
                 log.info("Purged %d expired review(s) from SQLite store", count)
             return count
 
+    def create_user(self, user_id: str, email: str, password_hash: str) -> dict:
+        now_iso = self._now().isoformat()
+        clean_email = email.strip().lower()
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO users (id, email, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                (user_id, clean_email, password_hash, now_iso),
+            )
+            self._db.commit()
+        return {"id": user_id, "email": clean_email, "created_at": now_iso}
+
+    def get_user_by_email(self, email: str) -> Optional[dict]:
+        clean_email = email.strip().lower()
+        with self._lock:
+            row = self._db.execute(
+                "SELECT id, email, password_hash, created_at FROM users WHERE email = ?",
+                (clean_email,),
+            ).fetchone()
+            if not row:
+                return None
+            return {"id": row[0], "email": row[1], "password_hash": row[2], "created_at": str(row[3])}
+
+    def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT id, email, password_hash, created_at FROM users WHERE id = ?",
+                (user_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return {"id": row[0], "email": row[1], "password_hash": row[2], "created_at": str(row[3])}
+
+    def create_session(self, id_hash: str, user_id: str, expires_at: datetime.datetime) -> None:
+        now_iso = self._now().isoformat()
+        expires_iso = expires_at.isoformat()
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO sessions (id_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (id_hash, user_id, expires_iso, now_iso),
+            )
+            self._db.commit()
+
+    def get_session(self, id_hash: str) -> Optional[dict]:
+        now_iso = self._now().isoformat()
+        with self._lock:
+            row = self._db.execute(
+                """
+                SELECT s.id_hash, s.user_id, s.expires_at, s.created_at, u.email
+                FROM sessions s
+                JOIN users u ON s.user_id = u.id
+                WHERE s.id_hash = ?
+                """,
+                (id_hash,),
+            ).fetchone()
+            if not row:
+                return None
+            id_h, uid, exp_iso, cr_iso, email = row
+            if exp_iso and exp_iso < now_iso:
+                self._db.execute("DELETE FROM sessions WHERE id_hash = ?", (id_hash,))
+                self._db.commit()
+                return None
+            return {
+                "id_hash": id_h,
+                "user_id": uid,
+                "expires_at": exp_iso,
+                "created_at": cr_iso,
+                "user": {"id": uid, "email": email, "created_at": cr_iso},
+            }
+
+    def delete_session(self, id_hash: str) -> None:
+        with self._lock:
+            self._db.execute("DELETE FROM sessions WHERE id_hash = ?", (id_hash,))
+            self._db.commit()
+
+    def purge_expired_sessions(self) -> int:
+        now_iso = self._now().isoformat()
+        with self._lock:
+            cursor = self._db.execute("DELETE FROM sessions WHERE expires_at < ?", (now_iso,))
+            cnt = cursor.rowcount
+            self._db.commit()
+            return cnt
+
+    def get_anon_usage(self, anon_id: str) -> int:
+        with self._lock:
+            row = self._db.execute("SELECT checks_used FROM anon_usage WHERE anon_id = ?", (anon_id,)).fetchone()
+            return row[0] if row else 0
+
+    def get_ip_usage(self, ip_hash: str) -> int:
+        # Clearing cookies is a known bypass; the IP counter only slows it down.
+        with self._lock:
+            row = self._db.execute("SELECT SUM(checks_used) FROM anon_usage WHERE ip_hash = ?", (ip_hash,)).fetchone()
+            return int(row[0]) if row and row[0] is not None else 0
+
+    def increment_anon_usage(self, anon_id: str, ip_hash: str) -> int:
+        now_iso = self._now().isoformat()
+        with self._lock:
+            row = self._db.execute("SELECT checks_used FROM anon_usage WHERE anon_id = ?", (anon_id,)).fetchone()
+            if row:
+                count = row[0] + 1
+                self._db.execute(
+                    "UPDATE anon_usage SET checks_used = ?, ip_hash = ? WHERE anon_id = ?",
+                    (count, ip_hash, anon_id),
+                )
+            else:
+                count = 1
+                self._db.execute(
+                    "INSERT INTO anon_usage (anon_id, checks_used, ip_hash, created_at) VALUES (?, ?, ?, ?)",
+                    (anon_id, count, ip_hash, now_iso),
+                )
+            self._db.commit()
+            return count
+
+    def attach_reviews_to_user(self, user_id: str, review_ids: list[str]) -> int:
+        if not review_ids:
+            return 0
+        updated = 0
+        with self._lock:
+            for rid in review_ids:
+                cur = self._db.execute(
+                    "UPDATE reviews SET user_id = ? WHERE id = ? AND (user_id IS NULL OR user_id = '')",
+                    (user_id, rid),
+                )
+                if cur.rowcount > 0:
+                    updated += cur.rowcount
+            self._db.commit()
+        return updated
+
+    def get_user_reviews(self, user_id: str) -> list[Review]:
+        now_iso = self._now().isoformat()
+        reviews = []
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT body, expires_at, user_id FROM reviews WHERE user_id = ? ORDER BY created_at DESC",
+                (user_id,),
+            ).fetchall()
+            for row in rows:
+                body, expires_at, uid = row[0], row[1], row[2]
+                if expires_at and expires_at < now_iso:
+                    continue
+                try:
+                    r = Review.model_validate_json(body)
+                    r.user_id = uid
+                    reviews.append(r)
+                except Exception:
+                    pass
+        return reviews
+
 
 class PostgresStore(BaseStore):
-    """Postgres-backed review store (Neon compatible)."""
+    """Postgres-backed review and user store (Neon compatible)."""
 
     def __init__(self, connection_url: str):
         import psycopg
@@ -165,14 +433,55 @@ class PostgresStore(BaseStore):
                         body TEXT NOT NULL,
                         created_at TIMESTAMPTZ NOT NULL,
                         expires_at TIMESTAMPTZ NOT NULL,
-                        delete_token_hash VARCHAR(64)
+                        delete_token_hash VARCHAR(64),
+                        user_id VARCHAR(64)
                     );
                     CREATE INDEX IF NOT EXISTS idx_reviews_expires_at ON reviews (expires_at);
+                    CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews (user_id);
+
+                    CREATE TABLE IF NOT EXISTS users (
+                        id VARCHAR(64) PRIMARY KEY,
+                        email VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL
+                    );
+
+                    CREATE TABLE IF NOT EXISTS sessions (
+                        id_hash VARCHAR(64) PRIMARY KEY,
+                        user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        expires_at TIMESTAMPTZ NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
+
+                    -- NOTE: Clearing cookies is a known bypass; the IP counter only slows it down.
+                    CREATE TABLE IF NOT EXISTS anon_usage (
+                        anon_id VARCHAR(64) PRIMARY KEY,
+                        checks_used INTEGER NOT NULL DEFAULT 0,
+                        ip_hash VARCHAR(64),
+                        created_at TIMESTAMPTZ NOT NULL
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_anon_usage_ip_hash ON anon_usage (ip_hash);
+                    """
+                )
+                # Ensure user_id column exists if reviews table existed previously
+                cur.execute(
+                    """
+                    DO $$
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_name='reviews' AND column_name='user_id'
+                        ) THEN
+                            ALTER TABLE reviews ADD COLUMN user_id VARCHAR(64);
+                        END IF;
+                    END $$;
                     """
                 )
             conn.commit()
 
         self.purge_expired()
+        self.purge_expired_sessions()
 
     def _connect(self):
         import psycopg
@@ -181,24 +490,33 @@ class PostgresStore(BaseStore):
     def _now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.timezone.utc)
 
-    def save(self, review: Review, delete_token: Optional[str] = None, retention_days: int = DEFAULT_RETENTION_DAYS) -> None:
+    def save(
+        self,
+        review: Review,
+        delete_token: Optional[str] = None,
+        retention_days: int = DEFAULT_RETENTION_DAYS,
+        user_id: Optional[str] = None,
+    ) -> None:
         now = self._now()
         expires = now + datetime.timedelta(days=retention_days)
         tok_hash = hashlib.sha256(delete_token.encode("utf-8")).hexdigest() if delete_token else None
+        target_uid = user_id if user_id is not None else review.user_id
+        review.user_id = target_uid
         body = review.model_dump_json()
 
         with self._lock, self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO reviews (id, body, created_at, expires_at, delete_token_hash)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO reviews (id, body, created_at, expires_at, delete_token_hash, user_id)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (id) DO UPDATE SET
                         body = EXCLUDED.body,
                         expires_at = EXCLUDED.expires_at,
-                        delete_token_hash = EXCLUDED.delete_token_hash
+                        delete_token_hash = EXCLUDED.delete_token_hash,
+                        user_id = COALESCE(EXCLUDED.user_id, reviews.user_id)
                     """,
-                    (review.id, body, now, expires, tok_hash),
+                    (review.id, body, now, expires, tok_hash, target_uid),
                 )
             conn.commit()
 
@@ -207,18 +525,20 @@ class PostgresStore(BaseStore):
         with self._lock, self._connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT body, expires_at FROM reviews WHERE id = %s", (review_id,)
+                    "SELECT body, expires_at, user_id FROM reviews WHERE id = %s", (review_id,)
                 )
                 row = cur.fetchone()
                 if not row:
                     return None
-                body, expires_at = row[0], row[1]
+                body, expires_at, user_id = row[0], row[1], row[2]
                 if expires_at and expires_at < now:
                     cur.execute("DELETE FROM reviews WHERE id = %s", (review_id,))
                     conn.commit()
                     return None
 
-        return Review.model_validate_json(body)
+        review = Review.model_validate_json(body)
+        review.user_id = user_id
+        return review
 
     def delete(self, review_id: str, delete_token: str) -> tuple[bool, str]:
         expected_hash = hashlib.sha256(delete_token.encode("utf-8")).hexdigest()
@@ -256,6 +576,174 @@ class PostgresStore(BaseStore):
             if count > 0:
                 log.info("Purged %d expired review(s) from Postgres store", count)
             return count
+
+    def create_user(self, user_id: str, email: str, password_hash: str) -> dict:
+        now = self._now()
+        clean_email = email.strip().lower()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO users (id, email, password_hash, created_at) VALUES (%s, %s, %s, %s)",
+                    (user_id, clean_email, password_hash, now),
+                )
+            conn.commit()
+        return {"id": user_id, "email": clean_email, "created_at": now.isoformat()}
+
+    def get_user_by_email(self, email: str) -> Optional[dict]:
+        clean_email = email.strip().lower()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, email, password_hash, created_at FROM users WHERE email = %s",
+                    (clean_email,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {"id": row[0], "email": row[1], "password_hash": row[2], "created_at": str(row[3])}
+
+    def get_user_by_id(self, user_id: str) -> Optional[dict]:
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, email, password_hash, created_at FROM users WHERE id = %s",
+                    (user_id,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                return {"id": row[0], "email": row[1], "password_hash": row[2], "created_at": str(row[3])}
+
+    def create_session(self, id_hash: str, user_id: str, expires_at: datetime.datetime) -> None:
+        now = self._now()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO sessions (id_hash, user_id, expires_at, created_at) VALUES (%s, %s, %s, %s)",
+                    (id_hash, user_id, expires_at, now),
+                )
+            conn.commit()
+
+    def get_session(self, id_hash: str) -> Optional[dict]:
+        now = self._now()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT s.id_hash, s.user_id, s.expires_at, s.created_at, u.email
+                    FROM sessions s
+                    JOIN users u ON s.user_id = u.id
+                    WHERE s.id_hash = %s
+                    """,
+                    (id_hash,),
+                )
+                row = cur.fetchone()
+                if not row:
+                    return None
+                id_h, uid, exp, cr, email = row
+                if exp and exp < now:
+                    cur.execute("DELETE FROM sessions WHERE id_hash = %s", (id_hash,))
+                    conn.commit()
+                    return None
+                return {
+                    "id_hash": id_h,
+                    "user_id": uid,
+                    "expires_at": exp.isoformat() if hasattr(exp, "isoformat") else str(exp),
+                    "created_at": cr.isoformat() if hasattr(cr, "isoformat") else str(cr),
+                    "user": {
+                        "id": uid,
+                        "email": email,
+                        "created_at": cr.isoformat() if hasattr(cr, "isoformat") else str(cr),
+                    },
+                }
+
+    def delete_session(self, id_hash: str) -> None:
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM sessions WHERE id_hash = %s", (id_hash,))
+            conn.commit()
+
+    def purge_expired_sessions(self) -> int:
+        now = self._now()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM sessions WHERE expires_at < %s", (now,))
+                cnt = cur.rowcount
+            conn.commit()
+            return cnt
+
+    def get_anon_usage(self, anon_id: str) -> int:
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT checks_used FROM anon_usage WHERE anon_id = %s", (anon_id,))
+                row = cur.fetchone()
+                return row[0] if row else 0
+
+    def get_ip_usage(self, ip_hash: str) -> int:
+        # Clearing cookies is a known bypass; the IP counter only slows it down.
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT SUM(checks_used) FROM anon_usage WHERE ip_hash = %s", (ip_hash,))
+                row = cur.fetchone()
+                return int(row[0]) if row and row[0] is not None else 0
+
+    def increment_anon_usage(self, anon_id: str, ip_hash: str) -> int:
+        now = self._now()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO anon_usage (anon_id, checks_used, ip_hash, created_at)
+                    VALUES (%s, 1, %s, %s)
+                    ON CONFLICT (anon_id) DO UPDATE SET
+                        checks_used = anon_usage.checks_used + 1,
+                        ip_hash = EXCLUDED.ip_hash
+                    RETURNING checks_used
+                    """,
+                    (anon_id, ip_hash, now),
+                )
+                row = cur.fetchone()
+                count = row[0] if row else 1
+            conn.commit()
+            return count
+
+    def attach_reviews_to_user(self, user_id: str, review_ids: list[str]) -> int:
+        if not review_ids:
+            return 0
+        updated = 0
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                for rid in review_ids:
+                    cur.execute(
+                        "UPDATE reviews SET user_id = %s WHERE id = %s AND (user_id IS NULL OR user_id = '')",
+                        (user_id, rid),
+                    )
+                    if cur.rowcount > 0:
+                        updated += cur.rowcount
+            conn.commit()
+        return updated
+
+    def get_user_reviews(self, user_id: str) -> list[Review]:
+        now = self._now()
+        reviews = []
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT body, expires_at, user_id FROM reviews WHERE user_id = %s ORDER BY created_at DESC",
+                    (user_id,),
+                )
+                rows = cur.fetchall()
+                for row in rows:
+                    body, expires_at, uid = row[0], row[1], row[2]
+                    if expires_at and expires_at < now:
+                        continue
+                    try:
+                        r = Review.model_validate_json(body)
+                        r.user_id = uid
+                        reviews.append(r)
+                    except Exception:
+                        pass
+        return reviews
 
 
 # Store alias for backward compatibility
