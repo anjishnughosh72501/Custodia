@@ -26,7 +26,13 @@ import { DIMENSIONS, type Example, type Health, type Review, type RewriteResult 
 import STATIC_EXAMPLES from "../examples.generated.json";
 import { useAuth } from "../auth/AuthContext";
 import { AuthGate } from "../auth/AuthGate";
-import { getStoredDraft, saveStoredDraft } from "../checker/useDraft";
+import { clearStoredDraft, getStoredDraft, saveStoredDraft } from "../checker/useDraft";
+import { EvidenceConfidenceMapCard } from "../components/EvidenceConfidenceMapCard";
+import { MultiSourceUploader } from "../components/MultiSourceUploader";
+import { ClaimComparisonView } from "../components/ClaimComparisonView";
+import { ReviewerWorkspaceModal } from "../components/ReviewerWorkspaceModal";
+import { BenchmarkDashboardModal } from "../components/BenchmarkDashboardModal";
+import { Layers, Award, History } from "lucide-react";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -90,6 +96,9 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [consideredRisks, setConsideredRisks] = useState<Record<string, boolean>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [showMultiSource, setShowMultiSource] = useState(false);
+  const [reviewerWorkspaceOpen, setReviewerWorkspaceOpen] = useState(false);
+  const [benchmarkOpen, setBenchmarkOpen] = useState(false);
   const undoDraftRef = useRef<string | null>(null);
 
   const { addItem, removeItem } = useLocalList();
@@ -107,8 +116,11 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   }, []);
 
   // Restore draft on mount if fields are empty and no specific example or review is requested
+  const initialDraftCheckedRef = useRef(false);
   useEffect(() => {
+    if (initialDraftCheckedRef.current) return;
     if (!reviewId && !exampleId && !claim.trim() && !evidence.trim()) {
+      initialDraftCheckedRef.current = true;
       const saved = getStoredDraft();
       if (saved) {
         setClaim(saved.claim);
@@ -358,18 +370,13 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         setClaim(r.claim_text);
         setEvidence(r.evidence_text);
         setTouched(false);
-        const isDemo = examples.some(
-          (ex) => ex.claim.trim() === r.claim_text.trim() && ex.evidence.trim() === r.evidence_text.trim()
-        );
-        if (!isDemo) {
-          addItem({
-            id: r.id,
-            claimSnippet: r.claim_text.slice(0, 80),
-            claimFull: r.claim_text,
-            evidenceFull: r.evidence_text,
-            verdictStatus: r.verdict.status,
-          });
-        }
+        addItem({
+          id: r.id,
+          claimSnippet: r.claim_text.slice(0, 80),
+          claimFull: r.claim_text,
+          evidenceFull: r.evidence_text,
+          verdictStatus: r.verdict.status,
+        });
       })
       .catch((e) => {
         if (cancelled) return;
@@ -429,18 +436,13 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
           // ignore
         }
       }
-      const isDemo = examples.some(
-        (ex) => ex.claim.trim() === claim.trim() && ex.evidence.trim() === evidence.trim()
-      );
-      if (!isDemo) {
-        addItem({
-          id: r.id,
-          claimSnippet: claim.slice(0, 60),
-          claimFull: claim,
-          evidenceFull: evidence,
-          verdictStatus: r.verdict.status,
-        });
-      }
+      addItem({
+        id: r.id,
+        claimSnippet: claim.slice(0, 60),
+        claimFull: claim,
+        evidenceFull: evidence,
+        verdictStatus: r.verdict.status,
+      });
 
       if (r.id) {
         navigate(`/r/${r.id}`, { scroll: false });
@@ -466,6 +468,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   }, [claim, evidence, limits, addItem, refreshUsage, examples]);
 
   const reset = () => {
+    clearStoredDraft();
     setClaim("");
     setEvidence("");
     setTouched(false);
@@ -626,6 +629,7 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
     <ErrorBoundary>
       <AppShell
         onNewCheck={reset}
+        onOpenPalette={() => setPaletteOpen(true)}
         onOpenRecent={() => {
           const rEl = document.querySelector(".recent-checks-panel");
           rEl?.scrollIntoView({ behavior: reduce() ? "auto" : "smooth", block: "center" });
@@ -651,6 +655,53 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                   claim is true.
                 </p>
               </section>
+
+              {/* CodeStar Round 3 Quick-Action Command Bar */}
+              <div className="flex flex-wrap items-center gap-2.5 mb-5 p-2 bg-slate-100/80 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowMultiSource(!showMultiSource)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    showMultiSource
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-white text-slate-700 hover:text-indigo-600 border border-slate-200"
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{showMultiSource ? "Close Multi-Source Tools" : "Multi-Source & Documents (PDF, Registries)"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBenchmarkOpen(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Award className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Evaluation Benchmark (116 Cases)</span>
+                </button>
+
+                {review && (
+                  <button
+                    type="button"
+                    onClick={() => setReviewerWorkspaceOpen(true)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <History className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Audit Trail &amp; Sign-Off</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Multi-source document uploader & registry search */}
+              {showMultiSource && (
+                <MultiSourceUploader
+                  onSelectEvidence={(text) => {
+                    setEvidence(text);
+                    addToast("Loaded multi-source evidence into verification draft", "ok");
+                  }}
+                  isVerifying={loading}
+                />
+              )}
 
               {wakingNotice && (
                 <div
@@ -767,6 +818,14 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                     )}
                     <VerdictCard review={review} onPickDimension={pick} />
                   </div>
+
+                  <ClaimComparisonView
+                    originalClaim={review.claim_text}
+                    rewrite={review.rewrite || rw}
+                    onApplyRewrite={handleUseAsDraft}
+                  />
+
+                  <EvidenceConfidenceMapCard confidenceMap={review.confidence_map} />
 
                   <section className="section" id="inspector" ref={inspectorRef} aria-labelledby="insp-h">
                     <div className="section-head">
@@ -913,6 +972,20 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
           isOpen={authGateOpen}
           onClose={() => setAuthGateOpen(false)}
           onSuccess={handleAuthGateSuccess}
+        />
+
+        {review && (
+          <ReviewerWorkspaceModal
+            review={review}
+            isOpen={reviewerWorkspaceOpen}
+            onClose={() => setReviewerWorkspaceOpen(false)}
+            onDecisionRecorded={() => addToast("Compliance decision logged to audit trail", "ok")}
+          />
+        )}
+
+        <BenchmarkDashboardModal
+          isOpen={benchmarkOpen}
+          onClose={() => setBenchmarkOpen(false)}
         />
       </AppShell>
     </ErrorBoundary>

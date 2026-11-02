@@ -6,7 +6,7 @@ from typing import Optional
 I = re.IGNORECASE
 GROUPS = (r"(?:customers?|users?|businesses|business|compan(?:y|ies)|participants?|teams?|clients?|"
           r"respondents?|employees?|merchants?|developers?|students?|patients?|organi[sz]ations?|"
-          r"people|firms|shops|stores)")
+          r"people|firms|shops|stores|laptops?|arrays?|robots?|trucks?|batteries|battery|nodes?|banks?|sequences?|subjects?)")
 GENERIC = {"our", "the", "a", "an", "of", "and", "in", "for", "with", "to", "by", "on", "using",
            "plan", "tier", "median", "mean", "average", "avg", "maximum", "minimum", "typical", "overall"}
 
@@ -44,7 +44,7 @@ NUM_RE_STR = rf"(?:\d+(?:\.\d+)?|{NUM_WORD_PATTERN})"
 PCT_RE = re.compile(rf"(?<![\w.])({NUM_RE_STR})\s*(%|percentage\s+points?|percent\b|pp\b)", I)
 TIMEVAL_RE = re.compile(rf"\bby\s+({NUM_RE_STR})\s*(seconds?|minutes?|hours?|days?|weeks?)\b", I)
 METRIC_RE = re.compile(r"\b((?:[a-z]+[ -]){0,1}?(?:time|rate|costs?|revenue|errors?|churn|conversion|retention|"
-                       r"latency|speed|sales|savings|score|downtime|tickets|spend|productivity))\b", I)
+                       r"latency|speed|sales|savings|score|downtime|tickets|spend|productivity|life|efficiency|levels?|iops|consumption|precision|throughput|risks?))\b", I)
 TW_RE = re.compile(rf"(?<!by )(?<![\w.])({NUM_RE_STR})[\s-]*(day|week|month|year)s?(?:[\s-]+(?:test|trial|study|pilot|period|window))?\b", I)
 _NOT_A_VALUE = r"(?!\d|\s*(?:%|percent|percentage|pp\b|(?:second|minute|hour|day|week|month|year)s?\b))"
 BOUNDED_RE = re.compile(rf"\b(?:of|among|across|from|for|to|by|with)\s+(((?:\d[\d,]*|{NUM_WORD_PATTERN}){_NOT_A_VALUE}\s+)?(?:[A-Za-z][\w\-]*\s+){{0,3}}?{GROUPS})\b", I)
@@ -53,10 +53,10 @@ COND_RE = re.compile(r"\b(?:[Uu]sing|[Oo]n|[Ww]ith|[Uu]nder|[Vv]ia)\s+(?:the\s+)
 UNIV_RE = re.compile(r"\b(every|all|always|never|everyone|everybody|any|each|guarantee[sd]?|without exception)\b", I)
 SUPER_RE = re.compile(r"(?:\b(best|fastest|cheapest|leading|only|unmatched|unrivaled|world-class|top|most\s+\w+)\b|#\s*1\b|number\s+one)", I)
 GENERAL_RE = re.compile(r"\b(cuts|reduces|improves|increases|lowers|boosts|saves|speeds|slashes|shortens|eliminates|ensures|delivers|drives|doubles|halves)\b", I)
-PAST_RE = re.compile(r"\b(fell|dropped|decreased|reduced|increased|rose|improved|grew|declined|saved|measured|observed|saw|achieved)\b", I)
+PAST_RE = re.compile(r"\b(fell|dropped|decreased|reduced|increased|rose|improved|grew|declined|saved|measured|observed|saw|achieved|reached)\b", I)
 TEST_RE = re.compile(r"\b(test|trial|study|pilot|survey|experiment|measured|observed|analysis|benchmark|fell|dropped|decreased|increased|rose|grew)\b", I)
 DEC_RE = re.compile(r"\b(cuts?|cutting|reduc\w*|fell|fall(?:s|en)?|drop\w*|decreas\w*|lower\w*|shorten\w*|slash\w*|declin\w*|halv\w*)\b", I)
-INC_RE = re.compile(r"\b(increas\w*|rose|rise[sn]?|grew|grow\w*|boost\w*|rais\w*|gain\w*|higher|doubl\w*)\b", I)
+INC_RE = re.compile(r"\b(increas\w*|rose|rise[sn]?|grew|grow\w*|boost\w*|rais\w*|gain\w*|higher|doubl\w*|reach\w*)\b", I)
 QUANT_RE = re.compile(r"\b(up\s+to|as\s+much\s+as|as\s+many\s+as|at\s+most|at\s+least|more\s+than|less\s+than|fewer\s+than|"
                       r"over|under|exceeding|upwards\s+of|nearly|almost|approximately|around|about|roughly|~)\s*$", I)
 QUANT_KIND = {"up to": "upper_bound", "as much as": "upper_bound", "as many as": "upper_bound", "at most": "upper_bound",
@@ -67,7 +67,8 @@ NEG_DIR_RE = re.compile(r"\b(?:not|never|no|fail(?:ed|s)?\s+to|didn't|doesn't|ha
                         r"increas\w*|rose|rise[sn]?|grew|grow\w*|boost\w*|rais\w*|gain\w*|improv\w*)\b", I)
 VALENCE_RE = re.compile(r"\b(improv\w*|better|worse|worsen\w*)\b", I)
 GROUP_NOUNS = {"customer", "user", "business", "company", "participant", "team", "client", "respondent", "employee",
-               "merchant", "developer", "student", "patient", "organization", "organisation", "people", "firm", "shop", "store"}
+               "merchant", "developer", "student", "patient", "organization", "organisation", "people", "firm", "shop", "store",
+               "laptop", "array", "robot", "truck", "battery", "node", "bank", "sequence", "subject"}
 STAT_RE = re.compile(r"\b(median|mean|average|avg|maximum|minimum|typical)\b", I)
 
 UNIT_ALIASES = {"%": "percent", "percent": "percent", "percentage": "percent",
@@ -78,7 +79,8 @@ TIME_SECONDS = {"seconds": 1, "minutes": 60, "hours": 3600, "days": 86400, "week
 STAT_NORM = {"average": "mean", "avg": "mean", "mean": "mean", "median": "median", "maximum": "maximum",
              "minimum": "minimum", "typical": "typical"}
 INJECTION_RE = re.compile(r"(ignore (all |any )?(previous|prior|above)|disregard .{0,30}instructions|system prompt|"
-                          r"you are (now )?an? |mark (this|the) claim as (supported|approved)|always (say|answer|respond)|"
+                          r"admin instruction|bypass checks|instruction:|verdict\s*=|you are (now )?an? |"
+                          r"mark (this|the) claim as (supported|approved)|always (say|answer|respond)|"
                           r"as an ai|<\s*/?\s*(system|assistant)\s*>)", I)
 
 

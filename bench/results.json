@@ -1,48 +1,55 @@
 {
-  "total_cases": 65,
+  "total_cases": 116,
   "false_approvals": 0,
   "false_rejections": 0,
   "date": "Oct 28, 2026",
   "engine_version": "rules-1.1",
-  "latency_ms_total": 86.72,
-  "latency_ms_per_case": 1.33,
+  "latency_ms_total": 146.96,
+  "latency_ms_per_case": 1.27,
   "splits": {
     "dev": {
-      "total": 38,
+      "total": 66,
       "false_approvals": 0,
       "false_rejections": 0,
-      "approved": 9,
-      "withheld": 29
+      "approved": 18,
+      "withheld": 48
     },
     "heldout": {
-      "total": 27,
+      "total": 50,
       "false_approvals": 0,
       "false_rejections": 0,
-      "approved": 6,
-      "withheld": 21
+      "approved": 14,
+      "withheld": 36
     }
   },
   "baseline": {
-    "total": 45,
+    "total": 62,
     "false_approvals": 0,
     "false_rejections": 0,
-    "approved": 12,
+    "approved": 29,
     "withheld": 33
   },
   "adversarial": {
-    "total": 20,
+    "total": 54,
     "false_approvals": 0,
     "false_rejections": 0,
     "approved": 3,
-    "withheld": 17
+    "withheld": 51
   },
   "by_category": {
     "causal_leaps": {
-      "total": 6,
+      "total": 7,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 6
+      "withheld": 7
+    },
+    "contradictory_sources": {
+      "total": 7,
+      "false_approvals": 0,
+      "false_rejections": 0,
+      "approved": 0,
+      "withheld": 7
     },
     "direction_flip": {
       "total": 2,
@@ -52,25 +59,25 @@
       "withheld": 2
     },
     "dropped_condition": {
-      "total": 2,
+      "total": 5,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 2
+      "withheld": 5
     },
     "faithful": {
-      "total": 15,
+      "total": 32,
       "false_approvals": 0,
       "false_rejections": 0,
-      "approved": 15,
+      "approved": 32,
       "withheld": 0
     },
     "guarantees": {
-      "total": 3,
+      "total": 4,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 3
+      "withheld": 4
     },
     "hedged_evidence": {
       "total": 2,
@@ -80,11 +87,11 @@
       "withheld": 2
     },
     "injection_strings": {
-      "total": 3,
+      "total": 6,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 3
+      "withheld": 6
     },
     "multi_number_evidence": {
       "total": 1,
@@ -94,18 +101,18 @@
       "withheld": 1
     },
     "number_inflation": {
-      "total": 4,
+      "total": 9,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 4
+      "withheld": 9
     },
     "population_widening": {
-      "total": 4,
+      "total": 9,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 4
+      "withheld": 9
     },
     "residue_assertion": {
       "total": 9,
@@ -122,32 +129,32 @@
       "withheld": 2
     },
     "statistic_swap": {
-      "total": 3,
+      "total": 5,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
-      "withheld": 3
+      "withheld": 5
     },
     "superlatives": {
+      "total": 6,
+      "false_approvals": 0,
+      "false_rejections": 0,
+      "approved": 0,
+      "withheld": 6
+    },
+    "time_window_stretch": {
+      "total": 6,
+      "false_approvals": 0,
+      "false_rejections": 0,
+      "approved": 0,
+      "withheld": 6
+    },
+    "unit_swap": {
       "total": 4,
       "false_approvals": 0,
       "false_rejections": 0,
       "approved": 0,
       "withheld": 4
-    },
-    "time_window_stretch": {
-      "total": 3,
-      "false_approvals": 0,
-      "false_rejections": 0,
-      "approved": 0,
-      "withheld": 3
-    },
-    "unit_swap": {
-      "total": 2,
-      "false_approvals": 0,
-      "false_rejections": 0,
-      "approved": 0,
-      "withheld": 2
     }
   },
   "failures": []

@@ -133,3 +133,104 @@ export const getMyReviews = async (): Promise<Review[]> => {
   const res = await call<{ reviews: unknown[] }>("/api/reviews/mine");
   return (res.reviews || []).map(normalizeReview).filter(Boolean) as Review[];
 };
+
+// --- CodeStar Round 3 API Methods ---
+
+export const uploadDocument = async (file: File): Promise<import("./types").ParsedDocument> => {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 60000);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/documents/upload`, {
+      method: "POST",
+      credentials: "include",
+      signal: ctl.signal,
+      body: formData,
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
+      throw new ApiError(e?.code ?? "UPLOAD_FAILED", e?.message ?? "Failed to upload document.");
+    }
+    return body as import("./types").ParsedDocument;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if ((err as Error).name === "AbortError") throw new ApiError("TIMEOUT", "Upload timed out.");
+    throw new ApiError("NETWORK", "Could not upload document. Check connection.");
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+export const searchConnectors = async (
+  query: string,
+  sources?: string[],
+  maxResultsPerSource = 3
+): Promise<{ query: string; total_sources_found: number; records: import("./types").SourceRecord[] }> => {
+  return call("/api/connectors/search", {
+    method: "POST",
+    body: JSON.stringify({
+      query,
+      sources,
+      max_results_per_source: maxResultsPerSource,
+    }),
+  });
+};
+
+export const lookupConnector = async (
+  identifier: string,
+  sourceType?: string
+): Promise<{ identifier: string; record: import("./types").SourceRecord | null }> => {
+  return call("/api/connectors/lookup", {
+    method: "POST",
+    body: JSON.stringify({ identifier, source_type: sourceType }),
+  });
+};
+
+export const checkMultiSource = async (
+  claim_text: string,
+  evidence_text = "",
+  source_ids: string[] = [],
+  chunk_ids: string[] = []
+): Promise<Review> => {
+  const raw = await call<unknown>("/api/check/multi-source", {
+    method: "POST",
+    body: JSON.stringify({
+      claim_text,
+      evidence_text,
+      source_ids,
+      chunk_ids,
+    }),
+  });
+  const normalized = normalizeReview(raw);
+  if (!normalized) {
+    throw new ApiError("INVALID_RESPONSE", "The server returned an unrecognised multi-source review format.");
+  }
+  return normalized;
+};
+
+export const getRevisions = async (reviewId: string): Promise<import("./types").AuditRevision[]> => {
+  const res = await call<{ revisions: import("./types").AuditRevision[] }>(`/api/reviews/${reviewId}/revisions`);
+  return res.revisions || [];
+};
+
+export const recordDecision = async (
+  reviewId: string,
+  decision: "APPROVED" | "REJECTED" | "FLAGGED_FOR_LEGAL" | "REVISED_EVIDENCE",
+  notes = ""
+): Promise<import("./types").AuditRevision> => {
+  const res = await call<{ revision: import("./types").AuditRevision }>(`/api/reviews/${reviewId}/decide`, {
+    method: "POST",
+    body: JSON.stringify({ decision, notes }),
+  });
+  return res.revision;
+};
+
+export const runBenchmark = async (): Promise<import("./types").BenchmarkResult> => {
+  return call("/api/benchmark/run", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+};

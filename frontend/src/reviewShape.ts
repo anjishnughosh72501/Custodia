@@ -176,5 +176,7 @@ export function normalizeReview(raw: unknown): Review | null {
     language_review,
     rewrite,
     nli,
+    confidence_map: (data.confidence_map as import("./types").EvidenceConfidenceMap) ?? null,
+    sources: Array.isArray(data.sources) ? (data.sources as import("./types").SourceRecord[]) : [],
   };
 }

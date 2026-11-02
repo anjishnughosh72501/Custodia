@@ -1,16 +1,31 @@
-__pycache__/
-*.pyc
-.env
-*.db
-.pytest_cache/
-frontend/node_modules/
-frontend/dist/
-app/web/
-
+# Dependencies
+node_modules/
 .venv/
-frontend/node_modules/
-models/
-*.onnx
-*.bin
-*.safetensors
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
 
+# Rust
+gateway/target/
+.rustup/
+**/*.rs.bk
+
+# SQLite databases & temp files
+*.db
+*.sqlite
+*.sqlite3
+
+# Build artifacts & testing
+build/
+dist/
+coverage/
+.coverage
+.pytest_cache/
+test-results/
+
+# Environment files
+.env*
+!.env.example

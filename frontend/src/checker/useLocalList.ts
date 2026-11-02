@@ -17,6 +17,9 @@ const MAX_STORED_TEXT_LENGTH = 10000;
 
 export function isDemoItem(item: Partial<LocalReviewItem>): boolean {
   if (!item) return false;
+  if (item.id && (/^[0-9a-f]{10,}$/i.test(item.id) || item.id.startsWith("actual-") || item.id.startsWith("rev_"))) {
+    return false;
+  }
   const c = (item.claimFull || item.claimSnippet || "").trim();
   const e = (item.evidenceFull || "").trim();
   return (STATIC_EXAMPLES as Array<{ id: string; claim: string; evidence: string }>).some((ex) => {

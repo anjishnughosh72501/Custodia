@@ -14,6 +14,7 @@ from .extraction.parsers import instruction_like
 from .models import Frame, NliDiagnostic, Review, RewriteResult, Verdict, VerdictStatus
 from .language.risk import analyze_language, verified_model_risks
 from .rewrite import build_template, evidence_sentence
+from .rules.confidence import build_evidence_confidence_map, EvidenceConfidenceMap
 from .rules.engine import ENGINE_VERSION, compare_frames, decide
 from .store import BaseStore, Store
 
@@ -270,6 +271,13 @@ class ReviewService:
 
         verdict = decide(comparisons, degraded=degraded, injection=injection, language_risks=risks)
         nli_diag = self._evaluate_nli(claim_text, evidence_text, verdict, warnings)
+        conf_map = build_evidence_confidence_map(
+            comparisons=comparisons,
+            verdict=verdict,
+            language_risks=risks,
+            degraded=degraded,
+            injection=injection,
+        )
         review = Review(id=uuid.uuid4().hex[:12], engine_version=ENGINE_VERSION,
                         extractor_mode="heuristic_fallback" if degraded else self.configured_mode,
                         degraded=degraded, warnings=warnings, claim_text=claim_text, evidence_text=evidence_text,
@@ -277,11 +285,79 @@ class ReviewService:
                         language_review=language_review, verdict=verdict, nli=nli_diag, delete_token=delete_token,
                         user_id=user_id)
         self.store.save(review, delete_token=delete_token, retention_days=self.retention_days, user_id=user_id)
+        try:
+            self.store.save_revision(
+                review_id=review.id,
+                claim_text=claim_text,
+                evidence_text=evidence_text,
+                verdict=verdict.model_dump(),
+                confidence_map=conf_map.model_dump(),
+                sources=[{"name": "Supplied Evidence", "type": "text", "citation": "Supplied Evidence Text"}],
+                reviewer_id=user_id,
+                reviewer_action="automated_check",
+                notes="Initial automated verification run.",
+            )
+        except Exception as ex:
+            log.warning("Could not persist initial revision for review %s: %s", review.id, ex)
+
         # Log metadata only: never the claim or evidence text.
         log.info("review id=%s verdict=%s mode=%s degraded=%s claim_chars=%d evidence_chars=%d risks=%d nli=%s",
                  review.id, verdict.status.value, review.extractor_mode, degraded, len(claim_text), len(evidence_text),
                  len(risks), nli_diag.predicted_label if nli_diag and nli_diag.available else "none")
         return review
+
+    def review_multi_source(
+        self,
+        claim_text: str,
+        sources: list[dict],
+        user_id: Optional[str] = None,
+    ) -> tuple[Review, EvidenceConfidenceMap]:
+        """Runs verification across multiple evidence sources (uploaded docs and external APIs)."""
+        combined_passages = []
+        source_labels = []
+        for s in sources:
+            name = s.get("name") or s.get("filename") or "Evidence Source"
+            cit = s.get("citation") or s.get("provenance_citation") or name
+            txt = s.get("text") or s.get("snippet") or ""
+            source_labels.append(cit)
+            combined_passages.append(f"[{cit}]\n{txt}")
+
+        combined_evidence = "\n\n".join(combined_passages)
+        review = self.review(claim_text=claim_text, evidence_text=combined_evidence, user_id=user_id)
+
+        conf_map = build_evidence_confidence_map(
+            comparisons=review.comparisons,
+            verdict=review.verdict,
+            language_risks=review.language_risks,
+            sources_checked=source_labels,
+            degraded=review.degraded,
+            injection=instruction_like(claim_text) or instruction_like(combined_evidence),
+        )
+
+        for dim_conf in conf_map.dimensions:
+            if dim_conf.evidence_raw:
+                for s in sources:
+                    s_txt = s.get("text") or s.get("snippet") or ""
+                    if dim_conf.evidence_raw in s_txt:
+                        dim_conf.source_citation = s.get("citation") or s.get("name")
+                        break
+
+        try:
+            self.store.save_revision(
+                review_id=review.id,
+                claim_text=claim_text,
+                evidence_text=combined_evidence,
+                verdict=review.verdict.model_dump(),
+                confidence_map=conf_map.model_dump(),
+                sources=sources,
+                reviewer_id=user_id,
+                reviewer_action="multi_source_check",
+                notes=f"Verified against {len(sources)} independent evidence sources.",
+            )
+        except Exception as ex:
+            log.warning("Could not save multi-source revision: %s", ex)
+
+        return review, conf_map
 
     def delete_review(self, review_id: str, delete_token: str) -> tuple[bool, str]:
         """Deletes a review if delete_token matches. Returns (success, reason)."""

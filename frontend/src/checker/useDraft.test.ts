@@ -5,18 +5,20 @@ import {
   clearStoredDraft,
 } from "./useDraft";
 
-if (typeof globalThis.localStorage === "undefined") {
-  let store: Record<string, string> = {};
-  globalThis.localStorage = {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = String(value); },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
-    key: (index: number) => Object.keys(store)[index] ?? null,
-    get length() { return Object.keys(store).length; },
-  } as any;
-}
-
+let store: Record<string, string> = {};
+const mockStorage = {
+  getItem: (key: string) => store[key] ?? null,
+  setItem: (key: string, value: string) => { store[key] = String(value); },
+  removeItem: (key: string) => { delete store[key]; },
+  clear: () => { store = {}; },
+  key: (index: number) => Object.keys(store)[index] ?? null,
+  get length() { return Object.keys(store).length; },
+};
+Object.defineProperty(globalThis, "localStorage", {
+  value: mockStorage,
+  writable: true,
+  configurable: true,
+});
 describe("useDraft storage operations", () => {
   beforeEach(() => {
     localStorage.clear();
