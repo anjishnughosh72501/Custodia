@@ -2,12 +2,12 @@
 
 **Date**: Oct 28, 2026  
 **Engine Version**: rules-1.1  
-**Total Cases**: 65  
-**Execution Time**: 86.72 ms (1.33 ms/case)  
+**Total Cases**: 116  
+**Execution Time**: 146.96 ms (1.27 ms/case)  
 
 ## Executive Summary
 
-- **False Approvals**: **0** across all 65 test cases.
+- **False Approvals**: **0** across all 116 test cases.
 - **False Rejections**: **0** across all faithful test cases.
 - **Contract Guarantee**: The deterministic engine strictly withholds approval whenever wording outgrows, contradicts, or drops conditions from the evidence.
 
@@ -15,36 +15,37 @@
 
 | Split | Cases | Approved | Withheld | False Approvals | False Rejections | Safety Rate |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `dev` | 38 | 9 | 29 | 0 | 0 | 100.0% |
-| `heldout` | 27 | 6 | 21 | 0 | 0 | 100.0% |
+| `dev` | 66 | 18 | 48 | 0 | 0 | 100.0% |
+| `heldout` | 50 | 14 | 36 | 0 | 0 | 100.0% |
 
 ## Set Breakdown (Baseline vs Adversarial)
 
 | Set | Cases | Approved | Withheld | False Approvals | False Rejections | Safety Rate |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `baseline` | 45 | 12 | 33 | 0 | 0 | 100.0% |
-| `adversarial` | 20 | 3 | 17 | 0 | 0 | 100.0% |
+| `baseline` | 62 | 29 | 33 | 0 | 0 | 100.0% |
+| `adversarial` | 54 | 3 | 51 | 0 | 0 | 100.0% |
 
 ## Category Performance
 
 | Category | Cases | Approved | Withheld | False Approvals | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `causal_leaps` | 6 | 0 | 6 | 0 | ✅ Clean |
+| `causal_leaps` | 7 | 0 | 7 | 0 | ✅ Clean |
+| `contradictory_sources` | 7 | 0 | 7 | 0 | ✅ Clean |
 | `direction_flip` | 2 | 0 | 2 | 0 | ✅ Clean |
-| `dropped_condition` | 2 | 0 | 2 | 0 | ✅ Clean |
-| `faithful` | 15 | 15 | 0 | 0 | ✅ Clean |
-| `guarantees` | 3 | 0 | 3 | 0 | ✅ Clean |
+| `dropped_condition` | 5 | 0 | 5 | 0 | ✅ Clean |
+| `faithful` | 32 | 32 | 0 | 0 | ✅ Clean |
+| `guarantees` | 4 | 0 | 4 | 0 | ✅ Clean |
 | `hedged_evidence` | 2 | 0 | 2 | 0 | ✅ Clean |
-| `injection_strings` | 3 | 0 | 3 | 0 | ✅ Clean |
+| `injection_strings` | 6 | 0 | 6 | 0 | ✅ Clean |
 | `multi_number_evidence` | 1 | 0 | 1 | 0 | ✅ Clean |
-| `number_inflation` | 4 | 0 | 4 | 0 | ✅ Clean |
-| `population_widening` | 4 | 0 | 4 | 0 | ✅ Clean |
+| `number_inflation` | 9 | 0 | 9 | 0 | ✅ Clean |
+| `population_widening` | 9 | 0 | 9 | 0 | ✅ Clean |
 | `residue_assertion` | 9 | 0 | 9 | 0 | ✅ Clean |
 | `second_person_promises` | 2 | 0 | 2 | 0 | ✅ Clean |
-| `statistic_swap` | 3 | 0 | 3 | 0 | ✅ Clean |
-| `superlatives` | 4 | 0 | 4 | 0 | ✅ Clean |
-| `time_window_stretch` | 3 | 0 | 3 | 0 | ✅ Clean |
-| `unit_swap` | 2 | 0 | 2 | 0 | ✅ Clean |
+| `statistic_swap` | 5 | 0 | 5 | 0 | ✅ Clean |
+| `superlatives` | 6 | 0 | 6 | 0 | ✅ Clean |
+| `time_window_stretch` | 6 | 0 | 6 | 0 | ✅ Clean |
+| `unit_swap` | 4 | 0 | 4 | 0 | ✅ Clean |
 
 ## Model Role Configuration & Rationale
 

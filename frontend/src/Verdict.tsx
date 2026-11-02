@@ -52,7 +52,7 @@ export function VerdictCard({ review, onPickDimension }: { review: Review; onPic
           )}
         </div>
       </div>
-      <div className="dimension-strip" role="group" aria-label="Seven dimensions">
+      <div className="rail dimension-strip" role="group" aria-label="Seven dimensions">
         <span className="dimension-strip-cap">Seven dimensions</span>
         <div className="dimension-strip-blocks">
           {DIMENSIONS.map((d, i) => {

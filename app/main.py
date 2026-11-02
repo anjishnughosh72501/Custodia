@@ -12,19 +12,24 @@ from pathlib import Path
 from typing import Optional
 from argon2 import PasswordHasher
 from itsdangerous import URLSafeTimedSerializer
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import Depends, FastAPI, File, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from .connectors import ConnectorManager
+from .documents import DocumentParserError, parse_uploaded_document, rank_relevant_passages
 from .examples import EXAMPLES
 from .extraction.llm import LlmBudgetTracker, LlmClient
 from .extraction.nli import NliClassifier, NliConfig
 from .models import ReviewRequest, RewriteRequest
+from .rules.confidence import build_evidence_confidence_map
 from .rules.engine import ENGINE_VERSION
 from .service import ReviewService
 from .store import BaseStore, build_store
+
+connector_manager = ConnectorManager()
 
 def get_env(key: str, default: Optional[str] = None) -> Optional[str]:
     """Accept CUSTODIA_* first, falling back to legacy SCOPELOCK_*."""
@@ -103,15 +108,18 @@ class AuthRateLimiter:
 
 
 def build_service_from_env() -> ReviewService:
-    key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY") or get_env("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    legacy_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    key = gemini_key or legacy_key
     llm: Optional[LlmClient] = None
     if key and get_env("DISABLE_LLM") != "1":
         single_override = get_env("MODEL")
-        model_extract = get_env("MODEL_EXTRACT", single_override or "claude-haiku-5-5")
-        model_flags = get_env("MODEL_FLAGS", single_override or "claude-haiku-5-5")
-        model_rewrite = get_env("MODEL_REWRITE", single_override or "claude-sonnet-5-5")
+        default_model = "gemini-3.8-flash" if gemini_key else "claude-haiku-5-5"
+        model_extract = get_env("MODEL_EXTRACT", single_override or default_model)
+        model_flags = get_env("MODEL_FLAGS", single_override or default_model)
+        model_rewrite = get_env("MODEL_REWRITE", single_override or default_model)
         daily_cap = int(get_env("LLM_DAILY_CALL_CAP", "500"))
-        timeout = float(get_env("LLM_TIMEOUT", "8.0"))
+        timeout = float(get_env("LLM_TIMEOUT", "12.0"))
 
         llm = LlmClient(
             api_key=key,
@@ -121,6 +129,7 @@ def build_service_from_env() -> ReviewService:
             model_rewrite=model_rewrite,
             timeout=timeout,
             budget_tracker=LlmBudgetTracker(daily_cap=daily_cap),
+            provider="gemini" if gemini_key else "anthropic",
         )
 
     nli_cfg = NliConfig.from_env()
@@ -329,11 +338,13 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
             "extractor_mode": svc.configured_mode,
             "active_mode": svc.active_mode,
             "llm_configured": svc.llm is not None,
+            "ai_ecosystem": "Google AI Studio / Gemini API",
             "models": models_info,
             "llm_budget": budget_info,
             "nli_enabled": nli_enabled,
             "nli_available": nli_avail,
             "nli_model_id": svc.nli.config.model_id if svc.nli else None,
+            "connectors": connector_manager.health(),
             "engine_version": ENGINE_VERSION,
             "language_review": "rules+model" if svc.llm else "rules",
             "limits": {"claim_chars": MAX_CLAIM, "evidence_chars": MAX_EVIDENCE},
@@ -611,6 +622,120 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
                 raise ApiError(404, "REVIEW_NOT_FOUND", "This review expired or was deleted. Reviews are kept for 30 days.")
             raise ApiError(403, "FORBIDDEN", "Invalid delete token.")
         return Response(status_code=204)
+
+    @app.post("/api/documents/upload")
+    async def upload_document(request: Request, file: UploadFile = File(...)):
+        limiter.check(client_key(request))
+        data = await file.read()
+        if len(data) > 10 * 1024 * 1024:
+            raise ApiError(413, "FILE_TOO_LARGE", f"File '{file.filename}' exceeds 10 MB limit.")
+        try:
+            parsed = parse_uploaded_document(data, file.filename or "uploaded_document")
+            return parsed.model_dump()
+        except DocumentParserError as ex:
+            raise ApiError(400, ex.code, str(ex))
+        except Exception as ex:
+            log.error("Document parsing unexpected error: %s", ex)
+            raise ApiError(500, "PARSE_ERROR", f"Could not extract text from document: {ex}")
+
+    @app.post("/api/connectors/search")
+    def search_connectors(request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        query = (body.get("query") or "").strip()
+        if not query:
+            raise ApiError(400, "QUERY_REQUIRED", "Please provide a search query or title.")
+        limit = min(10, max(1, int(body.get("limit", 5))))
+        records = connector_manager.search_all(query, limit_per_source=limit)
+        return {"query": query, "count": len(records), "results": [r.model_dump() for r in records]}
+
+    @app.post("/api/connectors/lookup")
+    def lookup_connector(request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        identifier = (body.get("identifier") or "").strip()
+        if not identifier:
+            raise ApiError(400, "IDENTIFIER_REQUIRED", "Identifier (DOI, PMID, NCT ID) is required.")
+        source = (body.get("source") or "").lower()
+        rec = None
+        if source in connector_manager.connectors:
+            rec = connector_manager.connectors[source].lookup(identifier)
+        else:
+            for conn in connector_manager.connectors.values():
+                rec = conn.lookup(identifier)
+                if rec:
+                    break
+        if not rec:
+            raise ApiError(404, "SOURCE_NOT_FOUND", f"No record found matching identifier '{identifier}'.")
+        return rec.model_dump()
+
+    @app.post("/api/check/multi-source", status_code=201)
+    def check_multi_source(request: Request, response: Response, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        check_csrf(request)
+        claim = (body.get("claim") or body.get("claim_text") or "").strip()
+        sources = body.get("sources") or []
+        if not claim:
+            raise ApiError(400, "CLAIM_REQUIRED", "Enter the marketing claim you want to check.")
+        if not sources or not isinstance(sources, list):
+            raise ApiError(400, "SOURCES_REQUIRED", "Provide at least one evidence source (document passage or registry lookup).")
+        if len(claim) > MAX_CLAIM:
+            raise ApiError(413, "CLAIM_TOO_LONG", f"The claim is limited to {MAX_CLAIM} characters.")
+
+        user = get_current_user(request)
+        user_id = user["id"] if user else None
+
+        review, conf_map = svc.review_multi_source(claim_text=claim, sources=sources, user_id=user_id)
+        r_dict = review.model_dump()
+        r_dict["confidence_map"] = conf_map.model_dump()
+        return r_dict
+
+    @app.get("/api/reviews/{review_id}/revisions")
+    def get_review_revisions(review_id: str, request: Request):
+        user = get_current_user(request)
+        user_id = user["id"] if user else None
+        revs = svc.store.get_revisions(review_id, user_id)
+        if not revs:
+            r = svc.store.get(review_id)
+            if not r:
+                raise ApiError(404, "REVIEW_NOT_FOUND", "Review not found or expired.")
+            conf_map = build_evidence_confidence_map(r.comparisons, r.verdict, r.language_risks, degraded=r.degraded)
+            v1 = svc.store.save_revision(
+                review_id=r.id,
+                claim_text=r.claim_text,
+                evidence_text=r.evidence_text,
+                verdict=r.verdict.model_dump(),
+                confidence_map=conf_map.model_dump(),
+                sources=[{"name": "Evidence Text", "type": "text", "citation": "Supplied Evidence"}],
+                reviewer_id=r.user_id,
+                reviewer_action="automated_check",
+                notes="Initial automated check."
+            )
+            return {"review_id": review_id, "count": 1, "revisions": [v1]}
+        return {"review_id": review_id, "count": len(revs), "revisions": revs}
+
+    @app.post("/api/reviews/{review_id}/decide")
+    def record_decision(review_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        check_csrf(request)
+        user = get_current_user(request)
+        if not user:
+            raise ApiError(401, "UNAUTHORIZED", "Reviewer sign-off requires authentication.")
+        decision = (body.get("decision") or "").strip().upper()
+        if decision not in ("APPROVED", "REJECTED", "FLAGGED_LEGAL", "REVISE_EVIDENCE"):
+            raise ApiError(400, "INVALID_DECISION", "Decision must be APPROVED, REJECTED, FLAGGED_LEGAL, or REVISE_EVIDENCE.")
+        notes = (body.get("notes") or "").strip()
+        try:
+            new_rev = svc.store.record_decision(review_id, user["id"], decision, notes)
+            return {"ok": True, "revision": new_rev}
+        except ValueError as ex:
+            raise ApiError(404, "NOT_FOUND", str(ex))
+
+    @app.post("/api/benchmark/run")
+    def run_benchmark_endpoint(request: Request):
+        limiter.check(client_key(request))
+        from bench.run import run_benchmark
+        results = run_benchmark()
+        return results
+
 
     web_dir = Path(get_env("WEB_DIR", str(Path(__file__).parent / "web")))
     if (web_dir / "index.html").exists():

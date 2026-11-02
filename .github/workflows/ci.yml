@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, round3/* ]
   pull_request:
     branches: [ main ]
 
@@ -60,14 +60,41 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  rust:
+    name: Rust Security Gateway CI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gateway
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust format check
+        run: cargo fmt --check
+
+      - name: Rust Clippy lint
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Rust unit & integration tests
+        run: cargo test --all
+
+      - name: Build gateway in release mode
+        run: cargo build --release
+
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
+    needs: [backend, frontend, rust]
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: actions/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
         uses: docker/build-push-action@v5
@@ -111,6 +138,7 @@ jobs:
 
       - name: Run Server and E2E Tests
         env:
+          CUSTODIA_ENV: dev
           CUSTODIA_RATE_LIMIT_PER_MIN: "0"
         run: |
           python -m uvicorn app.main:app --port 8000 &

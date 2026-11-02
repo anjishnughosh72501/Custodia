@@ -7,7 +7,7 @@ interface RevealProps {
   staggerIndex?: number;
   className?: string;
   style?: CSSProperties;
-  as?: keyof JSX.IntrinsicElements;
+  as?: keyof React.JSX.IntrinsicElements;
 }
 
 export function Reveal({

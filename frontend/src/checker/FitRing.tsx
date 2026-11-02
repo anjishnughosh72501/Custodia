@@ -17,14 +17,18 @@ interface FitRingProps {
 
 export function FitRing({ review, className = "" }: FitRingProps) {
   const [expanded, setExpanded] = useState(false);
-  const [displayScore, setDisplayScore] = useState(0);
-  const [strokeProgress, setStrokeProgress] = useState(0);
   const reducedMotion = useReducedMotion();
-  const disclosureId = useId();
-
   const fit: FitResult = computeFit(review);
   const tone = VERDICT_TONE[review.verdict.status] ?? "warn";
   const targetScore = fit.score;
+
+  const [displayScore, setDisplayScore] = useState(() =>
+    reducedMotion && targetScore !== null ? targetScore : 0
+  );
+  const [strokeProgress, setStrokeProgress] = useState(() =>
+    reducedMotion && targetScore !== null ? targetScore : 0
+  );
+  const disclosureId = useId();
 
   // SVG ring parameters
   // Desktop: 132px, radius ~52, viewBox 0 0 132 132.

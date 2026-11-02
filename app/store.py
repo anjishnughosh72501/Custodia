@@ -8,9 +8,11 @@ from __future__ import annotations
 import abc
 import datetime
 import hashlib
+import json
 import logging
 import sqlite3
 import threading
+import uuid
 from typing import Optional
 from .models import Review
 
@@ -107,6 +109,36 @@ class BaseStore(abc.ABC):
         """Returns reviews owned by a user."""
         pass
 
+    @abc.abstractmethod
+    def save_revision(
+        self,
+        review_id: str,
+        claim_text: str,
+        evidence_text: str,
+        verdict: dict,
+        confidence_map: Optional[dict] = None,
+        sources: Optional[list[dict]] = None,
+        suggested_rewrite: Optional[str] = None,
+        reverified_status: Optional[str] = None,
+        reviewer_id: Optional[str] = None,
+        reviewer_action: str = "automated_check",
+        notes: str = "",
+    ) -> dict:
+        """Saves a versioned audit revision of a claim verification."""
+        pass
+
+    @abc.abstractmethod
+    def get_revisions(self, review_id: str, user_id: Optional[str] = None) -> list[dict]:
+        """Returns all versioned revisions for an auditable review, enforcing user ownership."""
+        pass
+
+    @abc.abstractmethod
+    def record_decision(
+        self, review_id: str, user_id: str, decision: str, notes: str = ""
+    ) -> dict:
+        """Records a human reviewer audit decision (APPROVED, REJECTED, FLAGGED_LEGAL, REVISE_EVIDENCE)."""
+        pass
+
 
 class SqliteStore(BaseStore):
     """SQLite-backed review and user store."""
@@ -180,6 +212,30 @@ class SqliteStore(BaseStore):
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_reviews_user_id ON reviews (user_id)")
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)")
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_anon_usage_ip_hash ON anon_usage (ip_hash)")
+
+            # Revisions audit trail table
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS revisions (
+                    id TEXT PRIMARY KEY,
+                    review_id TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    claim_text TEXT NOT NULL,
+                    evidence_text TEXT NOT NULL,
+                    sources_json TEXT,
+                    verdict_json TEXT NOT NULL,
+                    confidence_map_json TEXT,
+                    suggested_rewrite TEXT,
+                    reverified_status TEXT,
+                    reviewer_id TEXT,
+                    reviewer_action TEXT DEFAULT 'automated_check',
+                    notes TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(review_id) REFERENCES reviews(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_revisions_review_id ON revisions (review_id)")
             self._db.commit()
 
         # Purge expired on startup
@@ -415,6 +471,151 @@ class SqliteStore(BaseStore):
                 except Exception:
                     pass
         return reviews
+
+    def save_revision(
+        self,
+        review_id: str,
+        claim_text: str,
+        evidence_text: str,
+        verdict: dict,
+        confidence_map: Optional[dict] = None,
+        sources: Optional[list[dict]] = None,
+        suggested_rewrite: Optional[str] = None,
+        reverified_status: Optional[str] = None,
+        reviewer_id: Optional[str] = None,
+        reviewer_action: str = "automated_check",
+        notes: str = "",
+    ) -> dict:
+        rev_id = uuid.uuid4().hex
+        now_iso = self._now().isoformat()
+        with self._lock:
+            cur = self._db.execute("SELECT MAX(version) FROM revisions WHERE review_id = ?", (review_id,))
+            row = cur.fetchone()
+            cur_version = row[0] if row and row[0] is not None else 0
+            new_version = cur_version + 1
+
+            self._db.execute(
+                """
+                INSERT INTO revisions (
+                    id, review_id, version, claim_text, evidence_text, sources_json,
+                    verdict_json, confidence_map_json, suggested_rewrite, reverified_status,
+                    reviewer_id, reviewer_action, notes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    rev_id,
+                    review_id,
+                    new_version,
+                    claim_text,
+                    evidence_text,
+                    json.dumps(sources or []),
+                    json.dumps(verdict),
+                    json.dumps(confidence_map or {}),
+                    suggested_rewrite,
+                    reverified_status,
+                    reviewer_id,
+                    reviewer_action,
+                    notes,
+                    now_iso,
+                ),
+            )
+            self._db.commit()
+
+        return {
+            "id": rev_id,
+            "review_id": review_id,
+            "version": new_version,
+            "claim_text": claim_text,
+            "evidence_text": evidence_text,
+            "sources": sources or [],
+            "verdict": verdict,
+            "confidence_map": confidence_map or {},
+            "suggested_rewrite": suggested_rewrite,
+            "reverified_status": reverified_status,
+            "reviewer_id": reviewer_id,
+            "reviewer_action": reviewer_action,
+            "notes": notes,
+            "created_at": now_iso,
+        }
+
+    def get_revisions(self, review_id: str, user_id: Optional[str] = None) -> list[dict]:
+        with self._lock:
+            # Enforce user data isolation
+            rev_row = self._db.execute("SELECT user_id FROM reviews WHERE id = ?", (review_id,)).fetchone()
+            if not rev_row:
+                return []
+            owner_id = rev_row[0]
+            if user_id and owner_id and owner_id != user_id:
+                # User does not own this review
+                return []
+
+            rows = self._db.execute(
+                """
+                SELECT id, review_id, version, claim_text, evidence_text, sources_json,
+                       verdict_json, confidence_map_json, suggested_rewrite, reverified_status,
+                       reviewer_id, reviewer_action, notes, created_at
+                FROM revisions WHERE review_id = ? ORDER BY version ASC
+                """,
+                (review_id,),
+            ).fetchall()
+
+        out = []
+        for r in rows:
+            out.append(
+                {
+                    "id": r[0],
+                    "review_id": r[1],
+                    "version": r[2],
+                    "claim_text": r[3],
+                    "evidence_text": r[4],
+                    "sources": json.loads(r[5] or "[]"),
+                    "verdict": json.loads(r[6] or "{}"),
+                    "confidence_map": json.loads(r[7] or "{}"),
+                    "suggested_rewrite": r[8],
+                    "reverified_status": r[9],
+                    "reviewer_id": r[10],
+                    "reviewer_action": r[11],
+                    "notes": r[12],
+                    "created_at": str(r[13]),
+                }
+            )
+        return out
+
+    def record_decision(
+        self, review_id: str, user_id: str, decision: str, notes: str = ""
+    ) -> dict:
+        revisions = self.get_revisions(review_id, user_id)
+        if not revisions:
+            # If no prior revisions exist, check the review body
+            review = self.get(review_id)
+            if not review:
+                raise ValueError("Review not found or unauthorized.")
+            return self.save_revision(
+                review_id=review_id,
+                claim_text=review.claim,
+                evidence_text=review.evidence,
+                verdict=review.verdict.model_dump(),
+                confidence_map=None,
+                suggested_rewrite=review.rewrite.text if review.rewrite else None,
+                reviewer_id=user_id,
+                reviewer_action=decision,
+                notes=notes,
+            )
+
+        latest = revisions[-1]
+        return self.save_revision(
+            review_id=review_id,
+            claim_text=latest["claim_text"],
+            evidence_text=latest["evidence_text"],
+            verdict=latest["verdict"],
+            confidence_map=latest.get("confidence_map"),
+            sources=latest.get("sources"),
+            suggested_rewrite=latest.get("suggested_rewrite"),
+            reverified_status=latest.get("reverified_status"),
+            reviewer_id=user_id,
+            reviewer_action=decision,
+            notes=notes,
+        )
 
 
 class PostgresStore(BaseStore):
@@ -744,6 +945,172 @@ class PostgresStore(BaseStore):
                     except Exception:
                         pass
         return reviews
+
+    def save_revision(
+        self,
+        review_id: str,
+        claim_text: str,
+        evidence_text: str,
+        verdict: dict,
+        confidence_map: Optional[dict] = None,
+        sources: Optional[list[dict]] = None,
+        suggested_rewrite: Optional[str] = None,
+        reverified_status: Optional[str] = None,
+        reviewer_id: Optional[str] = None,
+        reviewer_action: str = "automated_check",
+        notes: str = "",
+    ) -> dict:
+        rev_id = uuid.uuid4().hex
+        now_iso = self._now().isoformat()
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS revisions (
+                        id TEXT PRIMARY KEY,
+                        review_id TEXT NOT NULL,
+                        version INTEGER NOT NULL,
+                        claim_text TEXT NOT NULL,
+                        evidence_text TEXT NOT NULL,
+                        sources_json TEXT,
+                        verdict_json TEXT NOT NULL,
+                        confidence_map_json TEXT,
+                        suggested_rewrite TEXT,
+                        reverified_status TEXT,
+                        reviewer_id TEXT,
+                        reviewer_action TEXT DEFAULT 'automated_check',
+                        notes TEXT,
+                        created_at TIMESTAMP NOT NULL
+                    )
+                    """
+                )
+                cur.execute("SELECT MAX(version) FROM revisions WHERE review_id = %s", (review_id,))
+                row = cur.fetchone()
+                cur_version = row[0] if row and row[0] is not None else 0
+                new_version = cur_version + 1
+
+                cur.execute(
+                    """
+                    INSERT INTO revisions (
+                        id, review_id, version, claim_text, evidence_text, sources_json,
+                        verdict_json, confidence_map_json, suggested_rewrite, reverified_status,
+                        reviewer_id, reviewer_action, notes, created_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        rev_id,
+                        review_id,
+                        new_version,
+                        claim_text,
+                        evidence_text,
+                        json.dumps(sources or []),
+                        json.dumps(verdict),
+                        json.dumps(confidence_map or {}),
+                        suggested_rewrite,
+                        reverified_status,
+                        reviewer_id,
+                        reviewer_action,
+                        notes,
+                        now_iso,
+                    ),
+                )
+            conn.commit()
+
+        return {
+            "id": rev_id,
+            "review_id": review_id,
+            "version": new_version,
+            "claim_text": claim_text,
+            "evidence_text": evidence_text,
+            "sources": sources or [],
+            "verdict": verdict,
+            "confidence_map": confidence_map or {},
+            "suggested_rewrite": suggested_rewrite,
+            "reverified_status": reverified_status,
+            "reviewer_id": reviewer_id,
+            "reviewer_action": reviewer_action,
+            "notes": notes,
+            "created_at": now_iso,
+        }
+
+    def get_revisions(self, review_id: str, user_id: Optional[str] = None) -> list[dict]:
+        with self._lock, self._connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT user_id FROM reviews WHERE id = %s", (review_id,))
+                rev_row = cur.fetchone()
+                if not rev_row:
+                    return []
+                owner_id = rev_row[0]
+                if user_id and owner_id and owner_id != user_id:
+                    return []
+
+                cur.execute(
+                    """
+                    SELECT id, review_id, version, claim_text, evidence_text, sources_json,
+                           verdict_json, confidence_map_json, suggested_rewrite, reverified_status,
+                           reviewer_id, reviewer_action, notes, created_at
+                    FROM revisions WHERE review_id = %s ORDER BY version ASC
+                    """,
+                    (review_id,),
+                )
+                rows = cur.fetchall()
+
+        out = []
+        for r in rows:
+            out.append(
+                {
+                    "id": r[0],
+                    "review_id": r[1],
+                    "version": r[2],
+                    "claim_text": r[3],
+                    "evidence_text": r[4],
+                    "sources": json.loads(r[5] or "[]"),
+                    "verdict": json.loads(r[6] or "{}"),
+                    "confidence_map": json.loads(r[7] or "{}"),
+                    "suggested_rewrite": r[8],
+                    "reverified_status": r[9],
+                    "reviewer_id": r[10],
+                    "reviewer_action": r[11],
+                    "notes": r[12],
+                    "created_at": str(r[13]),
+                }
+            )
+        return out
+
+    def record_decision(
+        self, review_id: str, user_id: str, decision: str, notes: str = ""
+    ) -> dict:
+        revisions = self.get_revisions(review_id, user_id)
+        if not revisions:
+            review = self.get(review_id)
+            if not review:
+                raise ValueError("Review not found or unauthorized.")
+            return self.save_revision(
+                review_id=review_id,
+                claim_text=review.claim,
+                evidence_text=review.evidence,
+                verdict=review.verdict.model_dump(),
+                confidence_map=None,
+                suggested_rewrite=review.rewrite.text if review.rewrite else None,
+                reviewer_id=user_id,
+                reviewer_action=decision,
+                notes=notes,
+            )
+
+        latest = revisions[-1]
+        return self.save_revision(
+            review_id=review_id,
+            claim_text=latest["claim_text"],
+            evidence_text=latest["evidence_text"],
+            verdict=latest["verdict"],
+            confidence_map=latest.get("confidence_map"),
+            sources=latest.get("sources"),
+            suggested_rewrite=latest.get("suggested_rewrite"),
+            reverified_status=latest.get("reverified_status"),
+            reviewer_id=user_id,
+            reviewer_action=decision,
+            notes=notes,
+        )
 
 
 # Store alias for backward compatibility

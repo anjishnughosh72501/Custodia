@@ -34,7 +34,6 @@ export function Doc({ text, marks, pane, selected, onSelect, docRef }: DocProps)
                 onSelect(isSel ? null : primary);
               }
             }}
-            title="Click to focus this finding"
           >
             {s.text}
           </mark>
