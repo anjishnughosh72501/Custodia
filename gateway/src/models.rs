@@ -27,7 +27,9 @@ impl FileType {
     pub fn standard_mime(&self) -> &'static str {
         match self {
             FileType::Pdf => "application/pdf",
-            FileType::Docx => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            FileType::Docx => {
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            }
             FileType::Xlsx => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             FileType::Csv => "text/csv",
             FileType::Txt => "text/plain",

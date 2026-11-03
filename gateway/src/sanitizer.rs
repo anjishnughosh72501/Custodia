@@ -43,11 +43,7 @@ pub fn sanitize_filename(raw: &str) -> String {
     }
 
     // 6. Check for Windows reserved names (e.g. CON.pdf, AUX.txt)
-    let stem = clean
-        .split('.')
-        .next()
-        .unwrap_or("")
-        .to_ascii_uppercase();
+    let stem = clean.split('.').next().unwrap_or("").to_ascii_uppercase();
     if WINDOWS_RESERVED.contains(&stem.as_str()) {
         clean = format!("safe_{}", clean);
     }
@@ -77,7 +73,10 @@ mod tests {
     #[test]
     fn test_path_traversal_stripped() {
         assert_eq!(sanitize_filename("../../etc/passwd"), "passwd");
-        assert_eq!(sanitize_filename("..\\..\\windows\\system32\\calc.exe"), "calc.exe");
+        assert_eq!(
+            sanitize_filename("..\\..\\windows\\system32\\calc.exe"),
+            "calc.exe"
+        );
         assert_eq!(sanitize_filename("/var/log/syslog.pdf"), "syslog.pdf");
     }
 

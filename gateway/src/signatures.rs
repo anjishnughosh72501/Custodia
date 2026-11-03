@@ -27,7 +27,10 @@ pub fn identify_signature(data: &[u8]) -> Option<FileType> {
 
     // 1. PDF detection (within first 1024 bytes)
     let search_window = &data[..data.len().min(1024)];
-    if search_window.windows(PDF_MAGIC.len()).any(|w| w == PDF_MAGIC) {
+    if search_window
+        .windows(PDF_MAGIC.len())
+        .any(|w| w == PDF_MAGIC)
+    {
         return Some(FileType::Pdf);
     }
 
