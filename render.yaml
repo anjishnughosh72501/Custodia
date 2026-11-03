@@ -8,8 +8,10 @@ services:
     plan: free
     healthCheckPath: /api/ping
     envVars:
+      - key: GEMINI_API_KEY
+        sync: false        # Optional: Google AI Studio key for Gemini 2.5 advisory extraction & Fact Check
       - key: ANTHROPIC_API_KEY
-        sync: false        # Optional: leave unset to run on deterministic heuristic extractor
+        sync: false        # Optional legacy Anthropic key: leave unset to run on deterministic heuristic extractor
       - key: CUSTODIA_MODEL_EXTRACT
         value: claude-haiku-5-5
       - key: CUSTODIA_MODEL_FLAGS

@@ -32,6 +32,7 @@
 2. [Why Custodia Is Architecturally Different](#2-why-custodia-is-architecturally-different)
 3. [Feature Matrix](#3-feature-matrix)
 4. [Full System Architecture](#4-full-system-architecture)
+   - [4.1 Coordinated Multi-Agent Architecture](#41-coordinated-multi-agent-architecture)
 5. [Rust Secure Document Gateway](#5-rust-secure-document-gateway)
 6. [Multi-Format Document Ingestion & Provenance](#6-multi-format-document-ingestion--provenance)
 7. [Multi-Source External Evidence Connectors](#7-multi-source-external-evidence-connectors)
@@ -45,8 +46,8 @@
 15. [Verified Test Suite Metrics](#15-verified-test-suite-metrics)
 16. [Installation & Local Setup](#16-installation--local-setup)
 17. [Environment Variable Reference](#17-environment-variable-reference)
-18. [Docker Production Deployment](#18-docker-production-deployment)
-19. [API Documentation](#19-api-documentation)
+18. [Production Deployment: Docker, Render & Vercel](#18-production-deployment-docker-render--vercel)
+19. [Comprehensive API Documentation](#19-comprehensive-api-documentation)
 20. [Repository Structure](#20-repository-structure)
 21. [Known Limitations & Roadmap](#21-known-limitations--roadmap)
 22. [License & Acknowledgments](#22-license--acknowledgments)
@@ -125,6 +126,21 @@ flowchart TD
     ENG --> STORE
     STORE -->|4. Verified Verdict & Proof| UI
 ```
+
+### 4.1 Coordinated Multi-Agent Architecture
+
+Custodia deploys eight specialized, autonomous agents working in a strict defense-in-depth hierarchy:
+
+| Agent Name | Subsystem / Location | Core Responsibility | Authority & Guarantees |
+| :--- | :--- | :--- | :--- |
+| **1. Edge Security & Ingestion Gatekeeper Agent** | `gateway/` (Rust / Actix-Web) | Magic byte inspection, ZIP-bomb mitigation, filename sanitization, formula injection neutralization, SHA-256 fingerprinting. | **Absolute Rejection Power**: Disguised files or decompression bombs are blocked before Python memory allocation. |
+| **2. Multi-Format Document Ingestion Agent** | `app/documents/parser.py` (Python) | Parses PDF, DOCX, XLSX, CSV, and TXT files into structured passages with page, paragraph, sheet, row/column, and hash coordinates. | **Cryptographic Provenance**: Every extracted chunk is permanently anchored with SHA-256 and citation strings. |
+| **3. Autonomous Registry Connector Agents** | `app/connectors/` (Crossref, OpenAlex, PubMed, ClinicalTrials, FactCheck) | Queries public scientific literature, clinical trials, and fact-checking registries with TTL caching and circuit breakers. | **Public Ground Truth**: Normalizes disparate registry schemas into unified `SourceRecord` models with credibility scoring. |
+| **4. Advisory LLM Extraction & Nuance Agent** | `app/extraction/llm.py` (Gemini 2.5 Flash / Pro) | Extracts structured 7-dimensional claim frames, detects nuanced colloquial time windows, and identifies hedge words. | **Advisory Only**: Suggests interpretations; never determines mathematical truth or verdict status. |
+| **5. Local Semantic NLI Advisory Agent** | `app/extraction/nli.py` (ONNX DeBERTa-v3-xsmall INT8) | Local CPU inference classifying premise-hypothesis entailment, neutral divergence, and semantic contradictions. | **Advisory Withholding Power**: May withhold automated approval if semantic mismatch is detected; can never grant approval. |
+| **6. Deterministic Mathematical Decider Agent** | `app/rules/` (Frame Algebra) | Evaluates Metric, Value, Direction, Population, Temporal Window, Conditions, and Strength using interval arithmetic. | **Final Verdict Authority**: Enforces hard contradiction rules with zero false-approval tolerance. |
+| **7. Compliant Wording Rewrite Agent** | `app/main.py:rewrite` (LLM + Rule Constraints) | Formulates narrower, evidence-conforming wording alternatives when marketing claims overreach source evidence. | **Evidence-Conforming**: Generated rewrites strictly preserve the metric, direction, population, and effect size supported by evidence. |
+| **8. Human Reviewer & Audit Ledger Agent** | `app/store.py` (SQLite / Ledger) | Records human compliance officer decisions (`APPROVED`, `REJECTED`, `FLAGGED_LEGAL`, `REVISE_EVIDENCE`) and audit signatures. | **Immutable Governance**: All revisions and human sign-offs are permanently preserved in versioned audit history. |
 
 ---
 
@@ -532,36 +548,110 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
-## 18. Docker Production Deployment
+## 18. Production Deployment: Docker, Render & Vercel
 
-Custodia features an enterprise 4-stage multi-stage `Dockerfile`:
+Custodia is architected to run seamlessly either as a **unified self-contained Docker container** or as a **production split deployment** (Frontend on Vercel Edge CDN + Backend & Rust Gateway on Render).
+
+---
+
+### 18.1 Single Self-Contained Docker Container
+
+The repository includes a battle-hardened 4-stage container build (`Dockerfile`) that compiles all components into a zero-dependency image running on Debian Bookworm:
 
 ```dockerfile
-# Stage 1: Build Frontend Assets with Node 22
-# Stage 2: Pre-compile Python Bytecode & ML Models
-# Stage 3: Compile Rust Gateway in Release Mode
+# Stage 1: Build Frontend Assets with Node 20
+# Stage 2: Download & Cache Quantized NLI Model Checkpoints
+# Stage 3: Compile Rust Document Security Gateway (Release Mode)
 # Stage 4: Minimal Debian Runtime supervising Gateway (8002) and FastAPI (8000)
 ```
 
-### Build & Run Container
+#### Build & Run Container
 ```bash
 docker build -t custodia:round3 .
 
 docker run -d \
   -p 8000:8000 \
-  -e CUSTODIA_ENV=dev \
-  -e CUSTODIA_SECRET=super-secret-key-at-least-32-chars-long \
+  -e CUSTODIA_ENV=prod \
+  -e CUSTODIA_SECRET=your-secure-random-32-char-secret-key \
   --name custodia-app \
   custodia:round3
 ```
-Both the Rust security gateway and the FastAPI server start concurrently with health monitoring via `scripts/start.sh`.
+Both the Rust security gateway and the FastAPI server start concurrently with health monitoring via `scripts/start.sh`. The frontend is automatically served by FastAPI from `app/web`.
 
 ---
 
-## 19. API Documentation
+### 18.2 Render Backend Deployment (`render.yaml`)
 
-### `POST /api/documents/upload`
-Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for pre-validation and passage extraction.
+Deploy the Python FastAPI application and Rust Document Gateway on Render using the included infrastructure-as-code blueprint:
+
+1. **Create Web Service on Render**:
+   - In the Render Dashboard, click **New +** -> **Blueprint**.
+   - Connect the `Custodia` GitHub repository; Render detects `render.yaml`.
+2. **Environment Configuration**:
+   - `CUSTODIA_SECRET`: Automatically generated 32-character random key for signed session cookies.
+   - `CUSTODIA_ENV`: Set to `prod`.
+   - `CUSTODIA_CORS_ORIGINS`: Set to your Vercel deployment URL (e.g. `https://custodia-verifier.vercel.app`).
+   - `GEMINI_API_KEY`: (Optional) Your Google AI Studio API key for advisory frame extraction and Google Fact Check search.
+   - `DATABASE_URL`: (Optional) External PostgreSQL connection string (e.g. Neon) for multi-instance review retention; defaults to SQLite on persistent disk.
+   - `CUSTODIA_NLI_ENABLED`: Set to `0` by default; set to `1` to activate local ONNX DeBERTa inference on CPU.
+3. **Health Check Probe**: Render automatically monitors `GET /api/ping`.
+
+---
+
+### 18.3 Vercel Frontend Deployment (`vercel.json`)
+
+Deploy the React 19 + TypeScript frontend on Vercel's global Edge CDN:
+
+1. **Deploy from GitHub**:
+   - In Vercel, click **Add New...** -> **Project** and select your `Custodia` repository.
+   - **Root Directory**: Leave as default (`./`) or select `frontend`. Both are supported via `vercel.json` and `frontend/vercel.json`.
+2. **Environment Variables**:
+   - Set `VITE_API_BASE` to your live Render backend URL:
+     ```bash
+     VITE_API_BASE=https://custodia-api.onrender.com
+     ```
+3. **Build & Route Handling**:
+   - Vercel automatically runs `npm run build` and serves static assets.
+   - Built-in rewrite rules route `/assets/*` with immutable 1-year cache headers and redirect SPA client navigation (`/check`, `/my-checks`, `/login`, `/signup`, `/examples`, `/r/:id`) to `/index.html`.
+
+---
+
+### 18.4 Dual Split-Architecture Deployment Workflow
+
+```mermaid
+flowchart LR
+    Browser["User Client Browser"]
+    Vercel["Vercel Edge CDN
+(React 19 + TS SPA)
+Fast Global UI Delivery"]
+    Render["Render Web Service (Docker)
+- Rust Security Gateway (:8002)
+- FastAPI Engine (:8000)
+- SQLite / Neon PostgreSQL"]
+    Registries["External Registries
+(Crossref, PubMed, OpenAlex,
+ClinicalTrials, Fact Check)"]
+    Gemini["Google Gemini API
+(Advisory Extraction)"]
+
+    Browser -->|1. Global Static Assets| Vercel
+    Browser -->|2. Secure Document Upload & API Calls| Render
+    Render -->|3. Query Evidence| Registries
+    Render -.->|4. Optional Advisory Nuance| Gemini
+```
+
+---
+
+## 19. Comprehensive API Documentation
+
+Custodia exposes a clean, typed REST API across six distinct operational domains:
+
+---
+
+### 19.1 Document Ingestion & Edge Security Gateway
+
+#### `POST /api/documents/upload`
+Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for Rust pre-validation and passage chunking.
 * **Request:** `multipart/form-data` with `file: UploadFile` (capped at 10 MB).
 * **Response (200 OK):**
 ```json
@@ -587,7 +677,87 @@ Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for pre-validation and pas
 }
 ```
 
-### `POST /api/connectors/search`
+#### `POST /validate` *(Rust Gateway Direct Endpoint - Port 8002 / 8081)*
+Direct high-speed gateway verification stream for untrusted documents.
+* **Request:** `multipart/form-data` with `file: [bytes]`.
+* **Response (200 OK):** `{"valid": true, "filename": "sanitized.pdf", "sha256": "...", "size_bytes": 1048576, "file_type": "Pdf", "warnings": []}`
+* **Rejections:** `400 Bad Request` (`FILE_TOO_LARGE`, `DISGUISED_EXECUTABLE_REJECTED`, `ZIP_BOMB_DETECTED`, `PATH_TRAVERSAL_DETECTED`).
+
+---
+
+### 19.2 Verification & Claim Analysis APIs
+
+#### `POST /api/reviews`
+Submits a single claim and evidence text pair for standard deterministic verification.
+* **JSON Body:** `{"claim_text": "Our platform cuts latency by 40%.", "evidence_text": "In 500 trials, latency fell by 40%."}`
+* **Response (201 Created):** Full review model with verdict (`SUPPORTED`, `NOT_SUPPORTED`, `NEEDS_HUMAN_REVIEW`), 7-dimensional evaluation, confidence score, and language risks.
+
+#### `POST /api/check/multi-source`
+Runs a multi-source evidence check combining multiple uploaded document chunks and registry citations.
+* **JSON Body:**
+```json
+{
+  "claim_text": "Our product cuts server latency by 40% for enterprise customers.",
+  "sources": [
+    {
+      "type": "upload",
+      "title": "benchmark_q3.pdf",
+      "content": "In our benchmark of 500 enterprise servers, query latency fell by 40%.",
+      "citation": "benchmark_q3.pdf chunk-1"
+    }
+  ]
+}
+```
+* **Response (201 Created):** Review model with 7-dimensional breakdown, sub-passage provenance citations, and composite `confidence_map`.
+
+#### `GET /api/reviews/{id}`
+Retrieves a stored review by unique identifier.
+* **Response (200 OK):** Review data object or `404 Not Found`.
+
+#### `GET /api/reviews/mine`
+Retrieves a paginated list of claims verified by the currently authenticated user session.
+* **Response (200 OK):** `[ { "id": "...", "claim_text": "...", "verdict": "SUPPORTED", "created_at": "..." } ]`
+
+#### `DELETE /api/reviews/{id}`
+Deletes a review record owned by the authenticated user.
+* **Response (200 OK):** `{"ok": true}`
+
+---
+
+### 19.3 Human Compliance Audit & Revision Ledger APIs
+
+#### `POST /api/reviews/{id}/decide`
+Records an authorized human reviewer's compliance decision into the versioned audit ledger.
+* **JSON Body:** `{"decision": "APPROVED", "notes": "Verified against NCT04280705 and internal trial docs"}`
+* **Allowed Decisions:** `APPROVED` | `REJECTED` | `FLAGGED_LEGAL` | `REVISE_EVIDENCE`
+* **Response (200 OK):** `{"ok": true, "revision": { "revision_id": 1, "decision": "APPROVED", "decided_by": "auditor@org.com", "timestamp": "..." }}`
+
+#### `GET /api/reviews/{id}/revisions`
+Retrieves the complete revision history, timestamped human decisions, and audit trail for a review.
+* **Response (200 OK):** `{"review_id": "...", "count": 2, "revisions": [ ... ]}`
+
+#### `POST /api/reviews/{id}/rewrite`
+Generates evidence-conforming narrower claim wording suggestions that preserve supported metrics and effect sizes.
+* **Response (200 OK):**
+```json
+{
+  "review_id": "8f9a2c3d1e4b",
+  "original_claim": "Our software cuts processing time by 80% for every business.",
+  "suggested_rewrites": [
+    {
+      "claim_text": "Our software cut processing time by 30% for small-business cohorts in a 30-day trial.",
+      "rationale": "Adjusts effect magnitude from 80% to 30% and qualifies universal population to small-business cohort.",
+      "supported_verdict": "SUPPORTED"
+    }
+  ]
+}
+```
+
+---
+
+### 19.4 External Evidence Connectors APIs
+
+#### `POST /api/connectors/search`
 Queries public evidence registries for research literature, trials, and published fact checks.
 * **JSON Body:** `{"query": "GLP-1 receptor agonist cardiovascular outcomes", "limit": 5}`
 * **Response (200 OK):**
@@ -606,7 +776,7 @@ Queries public evidence registries for research literature, trials, and publishe
       "pmid": "32015507",
       "doi": "10.1056/NEJMoa2307563",
       "url": "https://pubmed.ncbi.nlm.nih.gov/32015507/",
-      "snippet": "In patients with preexisting cardiovascular disease and overweight or obesity, semaglutide was superior to placebo in reducing the incidence of death from cardiovascular causes.",
+      "snippet": "In patients with preexisting cardiovascular disease and overweight or obesity, semaglutide was superior to placebo...",
       "credibility_score": 0.95,
       "peer_reviewed": true
     }
@@ -614,46 +784,43 @@ Queries public evidence registries for research literature, trials, and publishe
 }
 ```
 
-### `POST /api/connectors/lookup`
+#### `POST /api/connectors/lookup`
 Performs an exact direct identifier lookup across registries (DOI, PMID, NCT ID, or OpenAlex ID).
 * **JSON Body:** `{"identifier": "NCT04280705", "source": "clinical_trials"}`
 * **Response (200 OK):** Normalized `SourceRecord` model.
 
-### `POST /api/check/multi-source`
-Runs a multi-source evidence check combining multiple uploaded document chunks and registry citations.
-* **JSON Body:**
-```json
-{
-  "claim_text": "Our product cuts server latency by 40% for enterprise customers.",
-  "sources": [
-    {
-      "type": "upload",
-      "title": "benchmark_q3.pdf",
-      "content": "In our benchmark of 500 enterprise servers, query latency fell by 40%.",
-      "citation": "benchmark_q3.pdf chunk-1"
-    }
-  ]
-}
-```
-* **Response (201 Created):** Full review model with 7-dimensional breakdown and `confidence_map` (overall score, supported dimensions, penalties breakdown).
+---
 
-### `POST /api/reviews/{id}/decide`
-Records an authorized human reviewer's compliance decision into the versioned audit ledger.
-* **JSON Body:** `{"decision": "APPROVED", "notes": "Verified against NCT04280705 and internal trial docs"}`
-* **Allowed Decisions:** `APPROVED` | `REJECTED` | `FLAGGED_LEGAL` | `REVISE_EVIDENCE`
-* **Response (200 OK):** `{"ok": true, "revision": { ... }}`
+### 19.5 Authentication & Account Isolation APIs
 
-### `GET /api/reviews/{id}/revisions`
-Retrieves the complete revision history, timestamped human decisions, and audit trail for a review.
-* **Response (200 OK):** `{"review_id": "...", "count": 2, "revisions": [ ... ]}`
+#### `POST /api/auth/signup`
+Creates a new auditor account with Argon2id password hashing and session generation.
+* **JSON Body:** `{"email": "auditor@firm.com", "password": "SecurePassword123!"}`
+* **Response (200 OK):** `{"ok": true, "user": {"id": "...", "email": "auditor@firm.com"}}`
 
-### `POST /api/reviews`
-Submits a single claim and evidence text pair for standard deterministic verification.
-* **JSON Body:** `{"claim_text": "...", "evidence_text": "..."}`
-* **Response (201 Created):** Complete review object with verdict, dimensions, and language risks.
+#### `POST /api/auth/login`
+Authenticates user credentials and issues a secure signed HTTP-only cookie.
+* **JSON Body:** `{"email": "auditor@firm.com", "password": "SecurePassword123!"}`
+* **Response (200 OK):** User profile and active permissions.
 
-### `GET /api/health`
-Returns system health, active extraction mode, NLI status, and connector availability.
+#### `POST /api/auth/logout`
+Terminates the user session and clears authentication cookies.
+* **Response (200 OK):** `{"ok": true}`
+
+#### `GET /api/auth/me`
+Retrieves currently authenticated user details, tier, and remaining check quotas.
+* **Response (200 OK):** `{"authenticated": true, "user": { "email": "auditor@firm.com", "tier": "pro" }}`
+
+#### `POST /api/auth/demo`
+Provides a zero-credential demo session bypass for hackathon and sandbox evaluation.
+* **Response (200 OK):** `{"ok": true, "demo": true}`
+
+---
+
+### 19.6 System Health, Diagnostics & Benchmark APIs
+
+#### `GET /api/health`
+Returns comprehensive system diagnostics, active extraction mode, NLI model ID, and registry connector statuses.
 * **Response (200 OK):**
 ```json
 {
@@ -673,6 +840,22 @@ Returns system health, active extraction mode, NLI status, and connector availab
   }
 }
 ```
+
+#### `GET /api/ping`
+Lightweight healthcheck probe used by Render, Docker, and Kubernetes liveness monitors.
+* **Response (200 OK):** `{"pong": true}`
+
+#### `GET /api/examples`
+Returns preloaded standard evaluation claims and source evidence pairs for immediate UI demonstration.
+* **Response (200 OK):** `[ { "id": "...", "title": "...", "claim": "...", "evidence": "..." } ]`
+
+#### `GET /api/usage`
+Returns check limit tracking and remaining daily verification quota for the active session.
+* **Response (200 OK):** `{"used": 1, "limit": 50, "remaining": 49}`
+
+#### `POST /api/benchmark/run`
+Triggers an on-demand run of the 116-case evaluation benchmark suite and returns verified metric summary.
+* **Response (200 OK):** `{"total_cases": 116, "false_approvals": 0, "false_rejections": 0, "execution_time_ms": 137.27}`
 
 ---
 
