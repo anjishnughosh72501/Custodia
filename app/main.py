@@ -133,7 +133,7 @@ def build_service_from_env() -> ReviewService:
         )
 
     nli_cfg = NliConfig.from_env()
-    nli: Optional[NliClassifier] = None
+    nli: Optional[NliClassifier] = NliClassifier(nli_cfg)
     if nli_cfg.enabled:
         nli = NliClassifier(nli_cfg)
         nli.load()

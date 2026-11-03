@@ -29,3 +29,10 @@ test-results/
 # Environment files
 .env*
 !.env.example
+
+# Model weights & compression artifacts (do not commit binaries to git)
+models/
+models_xsmall/
+*.onnx
+*.npy
+scratch/

@@ -1,0 +1,352 @@
+{
+  "model_id": "cross-encoder/nli-deberta-v3-xsmall",
+  "revision": "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d",
+  "model_path": "models_xsmall\\model_int8.onnx",
+  "total_cases": 24,
+  "accuracy_pct": 83.33,
+  "correct_predictions": 20,
+  "failure_count": 0,
+  "truncation_count": 0,
+  "truncation_rate_pct": 0.0,
+  "memory": {
+    "baseline_rss_mb": 31.27,
+    "post_load_rss_mb": 228.34,
+    "peak_rss_mb": 233.59,
+    "model_memory_delta_mb": 197.06
+  },
+  "latency_ms": {
+    "load_time_ms": 994.81,
+    "min_ms": 10.59,
+    "median_ms": 12.34,
+    "mean_ms": 12.38,
+    "max_ms": 14.42,
+    "p95_ms": 13.87
+  },
+  "confusion_matrix": {
+    "entailment": {
+      "entailment": 5,
+      "neutral": 3,
+      "contradiction": 0
+    },
+    "neutral": {
+      "entailment": 0,
+      "neutral": 7,
+      "contradiction": 0
+    },
+    "contradiction": {
+      "entailment": 1,
+      "neutral": 0,
+      "contradiction": 8
+    }
+  },
+  "per_class_metrics": {
+    "entailment": {
+      "support": 8,
+      "precision": 0.8333,
+      "recall": 0.625,
+      "f1": 0.7143
+    },
+    "neutral": {
+      "support": 7,
+      "precision": 0.7,
+      "recall": 1.0,
+      "f1": 0.8235
+    },
+    "contradiction": {
+      "support": 9,
+      "precision": 1.0,
+      "recall": 0.8889,
+      "f1": 0.9412
+    }
+  },
+  "results": [
+    {
+      "id": "tc-01",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "entailment",
+      "correct": true,
+      "entailment_score": 0.9956,
+      "neutral_score": 0.0039,
+      "contradiction_score": 0.0005,
+      "latency_ms": 13.78,
+      "truncated": false
+    },
+    {
+      "id": "tc-02",
+      "category": "paraphrase_support",
+      "expected": "entailment",
+      "predicted": "neutral",
+      "correct": false,
+      "entailment_score": 0.0051,
+      "neutral_score": 0.9817,
+      "contradiction_score": 0.0132,
+      "latency_ms": 13.56,
+      "truncated": false
+    },
+    {
+      "id": "tc-03",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "entailment",
+      "correct": true,
+      "entailment_score": 0.9959,
+      "neutral_score": 0.0036,
+      "contradiction_score": 0.0005,
+      "latency_ms": 14.35,
+      "truncated": false
+    },
+    {
+      "id": "tc-04",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "entailment",
+      "correct": true,
+      "entailment_score": 0.9681,
+      "neutral_score": 0.0297,
+      "contradiction_score": 0.0022,
+      "latency_ms": 13.24,
+      "truncated": false
+    },
+    {
+      "id": "tc-05",
+      "category": "numerical_exaggeration",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0004,
+      "neutral_score": 0.0022,
+      "contradiction_score": 0.9974,
+      "latency_ms": 12.43,
+      "truncated": false
+    },
+    {
+      "id": "tc-06",
+      "category": "direction_reversal",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.001,
+      "neutral_score": 0.0032,
+      "contradiction_score": 0.9958,
+      "latency_ms": 12.04,
+      "truncated": false
+    },
+    {
+      "id": "tc-07",
+      "category": "absolute_reversal",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0075,
+      "neutral_score": 0.0072,
+      "contradiction_score": 0.9853,
+      "latency_ms": 12.17,
+      "truncated": false
+    },
+    {
+      "id": "tc-08",
+      "category": "factual_conflict",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0009,
+      "neutral_score": 0.0369,
+      "contradiction_score": 0.9622,
+      "latency_ms": 11.03,
+      "truncated": false
+    },
+    {
+      "id": "tc-09",
+      "category": "unrelated_claim",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0004,
+      "neutral_score": 0.9779,
+      "contradiction_score": 0.0217,
+      "latency_ms": 12.52,
+      "truncated": false
+    },
+    {
+      "id": "tc-10",
+      "category": "insufficient_evidence",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0003,
+      "neutral_score": 0.9983,
+      "contradiction_score": 0.0014,
+      "latency_ms": 12.08,
+      "truncated": false
+    },
+    {
+      "id": "tc-11",
+      "category": "speculative_generalization",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0005,
+      "neutral_score": 0.0276,
+      "contradiction_score": 0.972,
+      "latency_ms": 11.87,
+      "truncated": false
+    },
+    {
+      "id": "tc-12",
+      "category": "unsupported_causality",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0003,
+      "neutral_score": 0.9773,
+      "contradiction_score": 0.0225,
+      "latency_ms": 13.89,
+      "truncated": false
+    },
+    {
+      "id": "tc-13",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "neutral",
+      "correct": false,
+      "entailment_score": 0.0034,
+      "neutral_score": 0.9964,
+      "contradiction_score": 0.0002,
+      "latency_ms": 13.11,
+      "truncated": false
+    },
+    {
+      "id": "tc-14",
+      "category": "numerical_discrepancy",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0002,
+      "neutral_score": 0.0012,
+      "contradiction_score": 0.9985,
+      "latency_ms": 11.84,
+      "truncated": false
+    },
+    {
+      "id": "tc-15",
+      "category": "neutral_unsupported",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0003,
+      "neutral_score": 0.9979,
+      "contradiction_score": 0.0018,
+      "latency_ms": 11.73,
+      "truncated": false
+    },
+    {
+      "id": "tc-16",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "entailment",
+      "correct": true,
+      "entailment_score": 0.9941,
+      "neutral_score": 0.0055,
+      "contradiction_score": 0.0003,
+      "latency_ms": 12.76,
+      "truncated": false
+    },
+    {
+      "id": "tc-17",
+      "category": "negation_conflict",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0002,
+      "neutral_score": 0.0035,
+      "contradiction_score": 0.9963,
+      "latency_ms": 11.89,
+      "truncated": false
+    },
+    {
+      "id": "tc-18",
+      "category": "neutral_topic_drift",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0007,
+      "neutral_score": 0.9988,
+      "contradiction_score": 0.0006,
+      "latency_ms": 12.19,
+      "truncated": false
+    },
+    {
+      "id": "tc-19",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "neutral",
+      "correct": false,
+      "entailment_score": 0.0007,
+      "neutral_score": 0.9851,
+      "contradiction_score": 0.0141,
+      "latency_ms": 12.87,
+      "truncated": false
+    },
+    {
+      "id": "tc-20",
+      "category": "contradiction_unit",
+      "expected": "contradiction",
+      "predicted": "entailment",
+      "correct": false,
+      "entailment_score": 0.9929,
+      "neutral_score": 0.0062,
+      "contradiction_score": 0.0009,
+      "latency_ms": 11.33,
+      "truncated": false
+    },
+    {
+      "id": "tc-21",
+      "category": "neutral_missing_link",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0003,
+      "neutral_score": 0.9982,
+      "contradiction_score": 0.0015,
+      "latency_ms": 11.24,
+      "truncated": false
+    },
+    {
+      "id": "tc-22",
+      "category": "contradiction_direct",
+      "expected": "contradiction",
+      "predicted": "contradiction",
+      "correct": true,
+      "entailment_score": 0.0001,
+      "neutral_score": 0.0009,
+      "contradiction_score": 0.999,
+      "latency_ms": 10.93,
+      "truncated": false
+    },
+    {
+      "id": "tc-23",
+      "category": "exact_support",
+      "expected": "entailment",
+      "predicted": "entailment",
+      "correct": true,
+      "entailment_score": 0.9903,
+      "neutral_score": 0.009,
+      "contradiction_score": 0.0007,
+      "latency_ms": 13.12,
+      "truncated": false
+    },
+    {
+      "id": "tc-24",
+      "category": "neutral_ambiguity",
+      "expected": "neutral",
+      "predicted": "neutral",
+      "correct": true,
+      "entailment_score": 0.0005,
+      "neutral_score": 0.9989,
+      "contradiction_score": 0.0006,
+      "latency_ms": 12.21,
+      "truncated": false
+    }
+  ]
+}

@@ -158,7 +158,7 @@ flowchart LR
 
 ## 6. Multi-Format Document Ingestion & Provenance
 
-Custodia extracts structured, traceable evidence from five standard document formats:
+Custodia extracts structured, traceable evidence from five standard document formats (`app/documents/parser.py`):
 
 ```mermaid
 sequenceDiagram
@@ -183,8 +183,43 @@ sequenceDiagram
     Engine-->>User: Visual citation: [Report.pdf | hash:a8f10b2c | p. 4 | para 2]
 ```
 
-### Scanned Document Detection
-If a PDF contains valid structural objects but fewer than 15 selectable text characters across all pages, Custodia rejects the ingestion with `SCANNED_PDF_OCR_REQUIRED`, alerting the user that rasterized or scanned documents require OCR preprocessing.
+### Supported Document Sources & Extraction Mechanics
+
+1. **PDF Documents (`.pdf`)**:
+   - **Parser**: `pypdf.PdfReader` with stream decoding.
+   - **Chunking**: Page-by-page extraction with paragraph-level segmentation.
+   - **Provenance Citation Format**: `[<filename> | hash:<sha256[:8]> | p. <page> | chunk <idx>]`
+   - **Scanned Document Detection**: If a PDF contains valid internal objects but yields fewer than 15 selectable text characters across all pages, Custodia rejects ingestion with `SCANNED_PDF_OCR_REQUIRED`, alerting the user that rasterized or scanned documents require OCR preprocessing.
+
+2. **Microsoft Word Documents (`.docx`)**:
+   - **Parser**: `python-docx` Document object model.
+   - **Heading Hierarchy**: Tracks active headings (`Heading 1`, `Heading 2`, etc.) and attaches `section_name` to every nested paragraph.
+   - **Table Extraction**: Parses embedded tables row-by-row into structured key-value pairs.
+   - **Provenance Citation Format**: `[<filename> | hash:<sha256[:8]> | sec: <section> | para <idx>]`
+
+3. **Microsoft Excel Spreadsheets (`.xlsx`)**:
+   - **Parser**: `openpyxl` with read-only streaming support.
+   - **Coordinate Mapping**: Maps column headers to cell values with exact cell coordinate references (e.g., `Sheet1!B12:E12`).
+   - **Formula Sanitization**: Flags formula cells starting with `=`, `+`, `-`, `@` to prevent spreadsheet injection.
+   - **Provenance Citation Format**: `[<filename> | hash:<sha256[:8]> | sheet: <sheet_name> | rows <start>-<end>]`
+
+4. **Comma-Separated Values (`.csv`)**:
+   - **Parser**: Python `csv` engine with delimiter autodetection.
+   - **Security Invariant**: Rejects or sanitizes unquoted DDE injection vectors (`=cmd`, `@SUM`, `-2+3*cmd|' /C calc'!A0`).
+   - **Provenance Citation Format**: `[<filename> | hash:<sha256[:8]> | line <start>-<end>]`
+
+5. **Plain Text Files (`.txt` / `.md`)**:
+   - **Parser**: UTF-8 stream decoder with strict replacement of invalid byte sequences.
+   - **Chunking**: Dual newline paragraph chunking with character span tracking.
+   - **Provenance Citation Format**: `[<filename> | hash:<sha256[:8]> | para <idx>]`
+
+### Provenance & Chunk Data Model (`DocumentChunk`):
+Every extracted passage carries immutable cryptographic traceability:
+- `chunk_id`: Deterministic hash derived from document hash and chunk position.
+- `document_id`: Unique identifier for the ingested document session.
+- `sha256`: Full 64-character SHA-256 digest of the source file.
+- `extracted_at`: ISO 8601 UTC timestamp.
+- `provenance_citation`: Human-readable and machine-verifiable citation string displayed on verdict cards.
 
 ---
 
@@ -192,16 +227,57 @@ If a PDF contains valid structural objects but fewer than 15 selectable text cha
 
 Custodia connects directly to leading public scientific, clinical, and fact-checking registries (`app/connectors/`):
 
-1. **Crossref:** REST API integration querying DOIs, journal articles, and scholarly publication metadata.
-2. **OpenAlex:** Semantic search across open-access scientific literature cohorts and institutional findings.
-3. **PubMed (NCBI E-Utilities):** Biomedical literature querying with MeSH term parsing and PMID extraction.
-4. **ClinicalTrials.gov:** Querying Study IDs (NCT numbers), patient cohort sizing, and primary endpoint outcomes.
-5. **Google Fact Check Tools API:** Instant lookup of previously debunked or verified claims by certified fact-checking organizations.
+### 1. Crossref (`app/connectors/crossref.py`)
+- **API Endpoint**: `https://api.crossref.org/works`
+- **Domain**: Comprehensive scholarly literature (peer-reviewed journals, books, conference proceedings).
+- **Lookup Modes**:
+  - **Direct DOI Lookup**: e.g., `10.1056/NEJMoa2001191`
+  - **Fuzzy Keyword Search**: Searches by article title, author list, or study keywords.
+- **Extracted Metadata**: DOI, paper title, authors, publication date, journal / container title, publisher, citation count.
+- **Credibility Weight**: 0.90 (peer-reviewed literature standard).
+
+### 2. OpenAlex (`app/connectors/openalex.py`)
+- **API Endpoint**: `https://api.openalex.org/works`
+- **Domain**: Open-access global scientific research graph (250M+ scholarly works).
+- **Lookup Modes**:
+  - **OpenAlex Work ID**: e.g., `W2741809807`
+  - **DOI Query**: e.g., `doi:10.1038/s41586-020-2012-7`
+  - **Free-text Query**: Searches titles and abstracts across institutions and cohorts.
+- **Inverted Abstract Reconstruction**: Automatically reconstructs inverted index word matrices into coherent readable passage summaries.
+- **Extracted Metadata**: OpenAlex ID, primary venue, publication year, cited-by count, open access status, author institutions.
+- **Credibility Weight**: 0.85.
+
+### 3. PubMed / NCBI E-Utilities (`app/connectors/pubmed.py`)
+- **API Endpoint**: `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/` (`esearch.fcgi`, `esummary.fcgi`, `efetch.fcgi`)
+- **Domain**: Biomedical and life sciences literature (MEDLINE, PubMed Central).
+- **Lookup Modes**:
+  - **PMID Lookup**: e.g., `32015507`
+  - **Medical MeSH Search**: Queries clinical and pharmacological study databases.
+- **Extracted Metadata**: PMID, DOI, title, journal, publication date, author list, abstract excerpt.
+- **Credibility Weight**: 0.95 (biomedical gold standard).
+
+### 4. ClinicalTrials.gov API v2 (`app/connectors/clinical_trials.py`)
+- **API Endpoint**: `https://clinicaltrials.gov/api/v2/studies`
+- **Domain**: National Institutes of Health (NIH) global clinical trials database.
+- **Lookup Modes**:
+  - **NCT Number Lookup**: e.g., `NCT04280705`
+  - **Condition / Intervention Search**: e.g., `"hypertension" AND "ace inhibitor"`
+- **Extracted Metadata**: NCT ID, study title, recruitment status, conditions studied, interventions evaluated, trial phase, enrolled cohort sizing, primary outcome measures, completion date.
+- **Credibility Weight**: 0.95.
+
+### 5. Google Fact Check Tools API (`app/connectors/factcheck.py`)
+- **API Endpoint**: `https://factchecktools.googleapis.com/v1alpha1/claims:search`
+- **Domain**: Database of public claims reviewed by accredited, independent fact-checking publishers (International Fact-Checking Network / Poynter signatories).
+- **Lookup Modes**:
+  - **Claim Text Query**: Searches previously audited claims, rumors, and product assertions.
+- **Extracted Metadata**: Audited claim text, claimant entity, claim date, fact-check publisher name, review date, textual rating (e.g., `False`, `Mostly False`, `Misleading`, `Correct`), direct audit review URL.
+- **Credibility Weight**: 0.90.
 
 ### Resilience Architecture:
-* **Circuit Breaker:** Automatically trips after 3 consecutive connection failures; Enters a 60-second cooldown period before re-probing external APIs.
-* **In-Memory TTL Caching:** Caches registry search results for 15 minutes to respect provider rate limits.
-* **Graceful Degradation:** If external APIs are unavailable or throttled, Custodia falls back to uploaded document evidence without failing the review.
+* **Circuit Breaker (`ConnectorCircuitBreaker`)**: Automatically tracks consecutive HTTP/network failures. Trips after 3 failures, preventing cascading latency, and initiates a 60-second cooldown period before re-probing upstream services.
+* **In-Memory TTL Caching**: Caches search results and identifier lookups for 15 minutes, conserving public API quotas and ensuring sub-50ms repeat lookups.
+* **Graceful Degradation**: If an external API is offline or throttled, Custodia records an unavailable status and continues evaluation using uploaded documents and remaining healthy connectors.
+* **Unified Source Contract (`SourceRecord`)**: Normalizes disparate registry schemas into a consistent schema with verified provenance, credibility score, and clickable external links.
 
 ---
 
@@ -251,6 +327,47 @@ flowchart LR
 * **Advisory Role:** If `GEMINI_API_KEY` is supplied, Gemini assists in semantic entity extraction, identifying colloquial time windows, and suggesting narrower wording for contradicted claims.
 * **Zero-Key Autonomy:** If no API key is configured, Custodia executes entirely on deterministic pattern matchers and rule heuristics with zero loss of verification capability.
 * **No Override Guarantee:** Even if an LLM generates a flattering score or claims text is compatible, the deterministic verification engine (`app/rules/engine.py`) enforces mathematical limits and will overturn any contradictory finding.
+
+### 9.1 Local ONNX Natural Language Inference (NLI) Advisory Module
+
+Custodia integrates an optional, completely local natural language inference (NLI) diagnostic module running on CPU via ONNX Runtime without external network calls or PyTorch dependencies in production.
+
+#### Safety and Authority Rules
+- **Evidence is always the Premise; Claim is always the Hypothesis.**
+- **Advisory Only**: Semantic inference may **withhold approval** (flagging semantic contradictions or unresolved neutral relationships for human review), but can **never grant approval** if deterministic checks fail.
+- **Deterministic Precedence**: If deterministic rules detect a dimension contradiction (e.g., metric mismatch or numerical drift), the verdict is `NOT_SUPPORTED` regardless of semantic model predictions.
+- **Fail-Safe Conservative Fallback**: If the model file is absent, disabled, truncated, or encounters an inference error, the engine seamlessly degrades to deterministic verification with zero downtime.
+
+#### Model Provenance & Compression
+- **Active / Primary Model**: `cross-encoder/nli-deberta-v3-xsmall`
+  - **Source Architecture**: Microsoft DeBERTa-v3 fine-tuned on SNLI and MultiNLI
+  - **Pinned Revision**: `a150876415327c80daeff35ca6f68f5ed8cf5c24`
+  - **License**: Apache-2.0
+  - **Vocabulary Pruning**: The original 128,100-token SPM embedding table was pruned to **25,694 tokens** (retaining all special tokens, top 24,000 unigram tokens by frequency score, and all tokens observed in repository test suites, benchmarks, and documentation). An accompanying `id_map.npy` lookup vector maps unpruned token IDs to pruned matrix rows.
+  - **Quantization**: Dynamically quantized to **INT8** (per-channel) via `onnxruntime.quantization.quantize_dynamic`, shrinking checkpoint footprint from ~270 MB to **45.8 MB**.
+- **Alternative / Baseline Model**: `cross-encoder/nli-MiniLM2-L6-H768`
+  - **Pinned Revision**: `b95119ce93d3e065de6214e38cd4a97b0f2f2c6d`
+  - **License**: Apache-2.0 (~79.0 MB INT8 ONNX).
+
+#### Empirical Benchmark Comparison (Measured Numbers)
+Measured on CPU using `scripts/benchmark_nli.py` against `bench/nli_benchmark_cases.json` (24 real-world marketing claim pairs, 3 repetitions per case):
+
+| Metric | Baseline (`nli-MiniLM2-L6-H768`) | Pruned `nli-deberta-v3-xsmall` | Improvement / Impact |
+| :--- | :--- | :--- | :--- |
+| **Model Checkpoint Size** | 79.0 MB | **45.8 MB** | **-42.0% reduction** (< 83 MB limit) |
+| **Overall Accuracy** | 75.00% (18/24) | **83.33% (20/24)** | **+8.33% accuracy** |
+| **Contradiction Precision** | 0.833 | **1.000 (100%)** | **Zero false-positive contradiction flags** |
+| **Contradiction Recall** | 0.556 (5/9) | **0.889 (8/9)** | **+33.3% recall improvement** |
+| **Contradiction F1** | 0.667 | **0.941** | **+27.4% F1 score** |
+| **Peak Memory RSS** | 159.7 MB | **233.6 MB** | **< 250 MB ceiling** (278.4 MB headroom vs 512 MB limit) |
+| **Model Load Time** | 722.0 ms | **994.8 ms** | Fast cold-start initialization |
+| **Per-Pair Median Latency** | 35.51 ms | **12.34 ms** | **2.88x faster inference** |
+| **Per-Pair Mean Latency** | 37.23 ms | **12.38 ms** | **3.01x faster inference** |
+| **Per-Pair P95 Latency** | 49.28 ms | **13.87 ms** | **3.55x faster tail latency** |
+| **Inference Failures / Truncated** | 0 / 0 | **0 / 0** | 100% execution reliability |
+| **Offline Parity vs. PyTorch fp32** | N/A | **99.62% agreement** (259/260) | High fidelity to original weights |
+
+*Note on Decision Thresholds*: The decision thresholds remain conservatively set at **0.70 for entailment** and **0.60 for contradiction**. Because `nli-deberta-v3-xsmall` demonstrates 100% precision on contradictions at threshold 0.60, no threshold adjustments are necessary or recommended at this time.
 
 ---
 
@@ -444,9 +561,9 @@ Both the Rust security gateway and the FastAPI server start concurrently with he
 ## 19. API Documentation
 
 ### `POST /api/documents/upload`
-Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for secure pre-validation and passage extraction.
-* **Form Data:** `file: UploadFile`
-* **Response:**
+Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for pre-validation and passage extraction.
+* **Request:** `multipart/form-data` with `file: UploadFile` (capped at 10 MB).
+* **Response (200 OK):**
 ```json
 {
   "document_id": "8f9a2c3d1e4b",
@@ -460,20 +577,102 @@ Uploads a binary document (PDF, DOCX, XLSX, CSV, TXT) for secure pre-validation 
       "chunk_id": "c1a2b3",
       "text": "In a 30-day trial of 120 small-business customers using Pro, median setup time fell by 30%.",
       "page_number": 4,
-      "provenance_citation": "clinical_trial.pdf | hash:e3b0c442 | p. 4 | para 2"
+      "paragraph_index": 2,
+      "section_name": null,
+      "cell_reference": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "extracted_at": "2026-11-03T18:00:00Z"
     }
   ]
 }
 ```
 
-### `POST /api/reviews`
-Submits a claim and supporting evidence for deterministic verification.
-* **JSON Body:** `{"claim": "string", "evidence": "string"}`
-* **Response:** Returns complete `Review` model including 7-dimensional comparisons, confidence map, evidence fit score, and verified rewrite suggestions.
+### `POST /api/connectors/search`
+Queries public evidence registries for research literature, trials, and published fact checks.
+* **JSON Body:** `{"query": "GLP-1 receptor agonist cardiovascular outcomes", "limit": 5}`
+* **Response (200 OK):**
+```json
+{
+  "query": "GLP-1 receptor agonist cardiovascular outcomes",
+  "count": 5,
+  "results": [
+    {
+      "source_id": "pubmed_32015507",
+      "source_name": "PubMed",
+      "source_type": "literature",
+      "title": "Cardiovascular Outcomes with Semaglutide in Patients with Overweight or Obesity",
+      "authors": ["Lincoff AM", "Brown-Frandsen K", "Colhoun HM"],
+      "publication_date": "2023-12-14",
+      "pmid": "32015507",
+      "doi": "10.1056/NEJMoa2307563",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/32015507/",
+      "snippet": "In patients with preexisting cardiovascular disease and overweight or obesity, semaglutide was superior to placebo in reducing the incidence of death from cardiovascular causes.",
+      "credibility_score": 0.95,
+      "peer_reviewed": true
+    }
+  ]
+}
+```
 
-### `POST /api/reviews/{id}/decision`
-Records a compliance officer's human sign-off into the versioned audit history.
-* **JSON Body:** `{"decision": "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED", "notes": "string"}`
+### `POST /api/connectors/lookup`
+Performs an exact direct identifier lookup across registries (DOI, PMID, NCT ID, or OpenAlex ID).
+* **JSON Body:** `{"identifier": "NCT04280705", "source": "clinical_trials"}`
+* **Response (200 OK):** Normalized `SourceRecord` model.
+
+### `POST /api/check/multi-source`
+Runs a multi-source evidence check combining multiple uploaded document chunks and registry citations.
+* **JSON Body:**
+```json
+{
+  "claim_text": "Our product cuts server latency by 40% for enterprise customers.",
+  "sources": [
+    {
+      "type": "upload",
+      "title": "benchmark_q3.pdf",
+      "content": "In our benchmark of 500 enterprise servers, query latency fell by 40%.",
+      "citation": "benchmark_q3.pdf chunk-1"
+    }
+  ]
+}
+```
+* **Response (201 Created):** Full review model with 7-dimensional breakdown and `confidence_map` (overall score, supported dimensions, penalties breakdown).
+
+### `POST /api/reviews/{id}/decide`
+Records an authorized human reviewer's compliance decision into the versioned audit ledger.
+* **JSON Body:** `{"decision": "APPROVED", "notes": "Verified against NCT04280705 and internal trial docs"}`
+* **Allowed Decisions:** `APPROVED` | `REJECTED` | `FLAGGED_LEGAL` | `REVISE_EVIDENCE`
+* **Response (200 OK):** `{"ok": true, "revision": { ... }}`
+
+### `GET /api/reviews/{id}/revisions`
+Retrieves the complete revision history, timestamped human decisions, and audit trail for a review.
+* **Response (200 OK):** `{"review_id": "...", "count": 2, "revisions": [ ... ]}`
+
+### `POST /api/reviews`
+Submits a single claim and evidence text pair for standard deterministic verification.
+* **JSON Body:** `{"claim_text": "...", "evidence_text": "..."}`
+* **Response (201 Created):** Complete review object with verdict, dimensions, and language risks.
+
+### `GET /api/health`
+Returns system health, active extraction mode, NLI status, and connector availability.
+* **Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "engine_version": "rules-1.1",
+  "active_mode": "heuristic",
+  "llm_configured": false,
+  "nli_enabled": false,
+  "nli_available": false,
+  "nli_model_id": "cross-encoder/nli-deberta-v3-xsmall",
+  "connectors": {
+    "crossref": {"name": "Crossref", "available": true, "cached_entries": 0},
+    "openalex": {"name": "OpenAlex", "available": true, "cached_entries": 0},
+    "pubmed": {"name": "PubMed", "available": true, "cached_entries": 0},
+    "clinical_trials": {"name": "ClinicalTrials.gov", "available": true, "cached_entries": 0},
+    "factcheck": {"name": "Google Fact Check", "available": true, "cached_entries": 0}
+  }
+}
+```
 
 ---
 

@@ -1,0 +1,8 @@
+# Build-time dependencies for exporting and compressing NLI models.
+# NOT included in runtime image or requirements.txt.
+torch>=2.2.0
+transformers>=4.40.0
+onnx>=1.16.0
+onnxruntime>=1.20.0
+tokenizers>=0.21.0
+numpy>=1.26.0

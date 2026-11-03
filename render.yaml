@@ -31,4 +31,6 @@ services:
       - key: DATABASE_URL
         sync: false        # Optional Neon Postgres connection string for persistent retention
       - key: CUSTODIA_NLI_ENABLED
-        value: "0"         # Set to "1" to enable local quantized INT8 ONNX NLI inference
+        value: "0"         # Set to "1" to enable local quantized INT8 ONNX NLI inference (~230 MB peak RSS, within 512 MB limit)
+      - key: CUSTODIA_NLI_MODEL_ID
+        value: "cross-encoder/nli-MiniLM2-L6-H768" # Or "cross-encoder/nli-deberta-v3-xsmall" (45.8 MB pruned & INT8 quantized)

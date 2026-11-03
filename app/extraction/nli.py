@@ -23,14 +23,14 @@ import numpy as np
 
 log = logging.getLogger("custodia.nli")
 
-DEFAULT_MODEL_ID = "cross-encoder/nli-MiniLM2-L6-H768"
-DEFAULT_REVISION = "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d"
-DEFAULT_LICENSE = "Apache-2.0"
-
-
 def _get_env(key: str, default: Optional[str] = None) -> Optional[str]:
     """Helper to read CUSTODIA_* or fallback SCOPELOCK_* environment variables."""
     return os.getenv(f"CUSTODIA_{key}", os.getenv(f"SCOPELOCK_{key}", default))
+
+
+DEFAULT_MODEL_ID = _get_env("NLI_MODEL_ID", "cross-encoder/nli-MiniLM2-L6-H768")
+DEFAULT_REVISION = _get_env("NLI_REVISION", "b95119ce93d3e065de6214e38cd4a97b0f2f2c6d")
+DEFAULT_LICENSE = "Apache-2.0"
 
 
 @dataclass
@@ -39,6 +39,7 @@ class NliConfig:
     model_path: str = "models/model_int8.onnx"
     tokenizer_path: str = "models/tokenizer.json"
     config_path: str = "models/config.json"
+    id_map_path: Optional[str] = None
     model_id: str = DEFAULT_MODEL_ID
     revision: str = DEFAULT_REVISION
     max_length: int = 256
@@ -49,11 +50,22 @@ class NliConfig:
     @classmethod
     def from_env(cls) -> NliConfig:
         env_enabled = _get_env("NLI_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+        configured_model_id = _get_env("NLI_MODEL_ID", DEFAULT_MODEL_ID)
+        model_path = _get_env("NLI_MODEL_PATH", "models/model_int8.onnx")
+        id_map_env = _get_env("NLI_ID_MAP_PATH", None)
+        if not id_map_env:
+            candidate = Path(model_path).parent / "id_map.npy"
+            if candidate.is_file():
+                id_map_env = str(candidate)
+
         return cls(
             enabled=env_enabled,
-            model_path=_get_env("NLI_MODEL_PATH", "models/model_int8.onnx"),
+            model_path=model_path,
             tokenizer_path=_get_env("NLI_TOKENIZER_PATH", "models/tokenizer.json"),
             config_path=_get_env("NLI_CONFIG_PATH", "models/config.json"),
+            id_map_path=id_map_env,
+            model_id=configured_model_id,
+            revision=_get_env("NLI_REVISION", DEFAULT_REVISION),
             max_length=int(_get_env("NLI_MAX_LENGTH", "256")),
             max_input_chars=int(_get_env("NLI_MAX_INPUT_CHARS", "2000")),
             entailment_threshold=float(_get_env("NLI_ENTAILMENT_THRESHOLD", "0.70")),
@@ -96,11 +108,13 @@ class NliClassifier:
         session: Any = None,
         tokenizer: Any = None,
         id2label: Optional[dict[int, str]] = None,
+        id_map: Optional[np.ndarray] = None,
     ):
         self.config = config or NliConfig()
         self._session = session
         self._tokenizer = tokenizer
         self._id2label = id2label
+        self._id_map = id_map
         self._loaded = session is not None and tokenizer is not None and id2label is not None
         self._load_error: Optional[str] = None
 
@@ -153,7 +167,19 @@ class NliClassifier:
             self._tokenizer = Tokenizer.from_file(str(tok_file))
             self._tokenizer.enable_truncation(max_length=self.config.max_length)
 
-            # 4. Load ONNX Runtime session
+            # 4. Load id_map if configured
+            if self.config.id_map_path:
+                id_map_file = Path(self.config.id_map_path)
+                if not id_map_file.is_file():
+                    raise FileNotFoundError(f"NLI id_map file not found at: {id_map_file}")
+                raw_id_map = np.load(str(id_map_file))
+                if not isinstance(raw_id_map, np.ndarray) or raw_id_map.ndim != 1:
+                    raise ValueError(f"id_map must be a 1D numpy array, got shape {getattr(raw_id_map, 'shape', None)}")
+                if not np.issubdtype(raw_id_map.dtype, np.integer):
+                    raise ValueError(f"id_map must have integer dtype, got {raw_id_map.dtype}")
+                self._id_map = raw_id_map.astype(np.int64)
+
+            # 5. Load ONNX Runtime session
             import onnxruntime as ort
             sess_options = ort.SessionOptions()
             sess_options.intra_op_num_threads = 1
@@ -242,7 +268,23 @@ class NliClassifier:
             truncated = char_truncated or token_truncated
 
             # Prepare ONNX inputs
-            input_ids = np.array([encoding.ids], dtype=np.int64)
+            raw_ids = np.array(encoding.ids, dtype=np.int64)
+            if self._id_map is not None:
+                map_len = len(self._id_map)
+                unk_token_id = 3
+                if hasattr(self._tokenizer, "token_to_id"):
+                    tok_unk = self._tokenizer.token_to_id("[UNK]")
+                    if tok_unk is not None:
+                        unk_token_id = tok_unk
+                unk_mapped = int(self._id_map[unk_token_id]) if 0 <= unk_token_id < map_len else 0
+
+                valid_mask = (raw_ids >= 0) & (raw_ids < map_len)
+                remapped = np.full_like(raw_ids, unk_mapped, dtype=np.int64)
+                remapped[valid_mask] = self._id_map[raw_ids[valid_mask]]
+                input_ids = np.array([remapped], dtype=np.int64)
+            else:
+                input_ids = np.array([raw_ids], dtype=np.int64)
+
             attention_mask = np.array([encoding.attention_mask], dtype=np.int64)
             inputs = {
                 "input_ids": input_ids,

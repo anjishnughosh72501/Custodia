@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, navigate, useRoute } from "../router";
-import { getHealth } from "../api";
-import type { Health } from "../types";
 import { isReducedMotion } from "../motion/anime";
 import { UserMenu } from "../auth/UserMenu";
 
@@ -26,13 +24,7 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(isHomePage ? "product" : null);
-  const [health, setHealth] = useState<Health | null>(null);
-  const [healthErr, setHealthErr] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    getHealth().then(setHealth).catch(() => setHealthErr(true));
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -143,8 +135,6 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
       navigate(`/#${sectionId}`);
     }
   };
-
-  const mode = health ? (health.llm_configured ? "llm" : "rules") : "";
 
   return (
     <div className="marketing-shell">
@@ -313,22 +303,6 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
               <p className="footer-tagline">
                 Deterministic claim verification for marketing and compliance.
               </p>
-              <div className={`mode ${mode} footer-mode`} role="status" aria-live="polite">
-                <i aria-hidden="true" />
-                {healthErr ? (
-                  <span>Server status unavailable</span>
-                ) : !health ? (
-                  <span>Checking server…</span>
-                ) : health.llm_configured ? (
-                  <span>
-                    Model-assisted <small>· deterministic checks decide</small>
-                  </span>
-                ) : (
-                  <span>
-                    Rule-based mode <small>· no model configured</small>
-                  </span>
-                )}
-              </div>
             </div>
 
             <div className="footer-links-grid">
@@ -379,12 +353,12 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
                 <ul>
                   <li>
                     <a href="https://github.com/anjishnughosh72501/Custodia" target="_blank" rel="noopener noreferrer">
-                      Aryan · Engineering & UI
+                      Aryan · Rules & Pipeline
                     </a>
                   </li>
                   <li>
                     <a href="https://github.com/anjishnughosh72501" target="_blank" rel="noopener noreferrer">
-                      Anjishnu · Rules & Pipeline
+                      Anjishnu · Engineering & UI
                     </a>
                   </li>
                   <li>
@@ -398,14 +372,6 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
           </div>
 
           <div className="footer-bottom">
-            <p className="footer-bottom-meta">
-              Built for the hackathon by Aryan, Anjishnu, and Ananya. Contact:{" "}
-              <a href="mailto:contact@custodia.dev">contact@custodia.dev</a>{" "}
-              ·{" "}
-              <a href="https://github.com/anjishnughosh72501/Custodia/issues" target="_blank" rel="noopener noreferrer">
-                GitHub Issues
-              </a>
-            </p>
             <p>
               Custodia is a rule-based checker with optional model assistance. It does not browse, fetch sources or judge
               whether the evidence itself is reliable, and it supports English text only. Example scenarios are illustrative

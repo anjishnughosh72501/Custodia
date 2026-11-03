@@ -12,7 +12,8 @@ WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir httpx numpy onnxruntime tokenizers
 COPY scripts/prepare_nli_model.py scripts/
-RUN python scripts/prepare_nli_model.py --dir /build/models
+ARG CUSTODIA_NLI_MODEL_ID="cross-encoder/nli-MiniLM2-L6-H768"
+RUN python scripts/prepare_nli_model.py --model "${CUSTODIA_NLI_MODEL_ID}" --dir /build/models
 
 # Stage 3: build the Rust Secure Document Gateway
 FROM rust:1-slim AS rust-builder

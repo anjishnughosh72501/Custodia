@@ -1,6 +1,7 @@
 """Shared data contracts. AI proposes quotes; deterministic code verifies, parses and compares."""
 from __future__ import annotations
 from enum import Enum
+import os
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 
@@ -97,7 +98,9 @@ class RewriteResult(BaseModel):
 class NliDiagnostic(BaseModel):
     """Semantic NLI diagnostic signal. Informational only; deterministic rules retain authority."""
     available: bool = False
-    model_id: str = "cross-encoder/nli-MiniLM2-L6-H768"
+    model_id: str = Field(
+        default_factory=lambda: os.getenv("CUSTODIA_NLI_MODEL_ID", os.getenv("SCOPELOCK_NLI_MODEL_ID", "cross-encoder/nli-MiniLM2-L6-H768"))
+    )
     predicted_label: Optional[str] = None  # entailment | neutral | contradiction
     entailment_score: Optional[float] = None
     neutral_score: Optional[float] = None

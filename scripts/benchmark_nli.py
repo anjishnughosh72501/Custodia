@@ -1,7 +1,10 @@
-"""Reproducible benchmark and validation script for Custodia's NLI model.
+"""Reproducible benchmark and validation script for Custodia's NLI module.
 
-Evaluates the quantized INT8 ONNX checkpoint (cross-encoder/nli-MiniLM2-L6-H768)
-on CPU inference for:
+Evaluates quantized INT8 ONNX models:
+- cross-encoder/nli-MiniLM2-L6-H768 (~79 MB, baseline)
+- cross-encoder/nli-deberta-v3-xsmall (~45.6 MB, pruned & INT8 quantized)
+
+Measures on CPU:
 1. Model loading latency and memory footprint (RSS)
 2. Per-pair inference latency (median, mean, min, max, p95)
 3. Peak resident set size (RSS)
@@ -9,8 +12,17 @@ on CPU inference for:
 5. Truncation rate and failure rate
 
 Usage:
-    python scripts/benchmark_nli.py
+    # Baseline MiniLM:
     python scripts/benchmark_nli.py --dataset bench/nli_benchmark_cases.json
+
+    # Pruned DeBERTa-v3-xsmall:
+    python scripts/benchmark_nli.py \
+        --model-path models_xsmall/model_int8.onnx \
+        --tokenizer-path models_xsmall/tokenizer.json \
+        --config-path models_xsmall/config.json \
+        --id-map-path models_xsmall/id_map.npy \
+        --model-id cross-encoder/nli-deberta-v3-xsmall \
+        --output bench/nli_results_deberta_xsmall.json
 """
 from __future__ import annotations
 import argparse
@@ -48,6 +60,8 @@ def run_benchmark(
     tokenizer_path: Path,
     config_path: Path,
     output_path: Path,
+    id_map_path: Optional[Path] = None,
+    model_id: Optional[str] = None,
     repeats: int = 3,
 ) -> Dict[str, Any]:
     log.info("Loading benchmark dataset from: %s", dataset_path)
@@ -66,6 +80,8 @@ def run_benchmark(
         model_path=str(model_path),
         tokenizer_path=str(tokenizer_path),
         config_path=str(config_path),
+        id_map_path=str(id_map_path) if id_map_path else None,
+        model_id=model_id or NliConfig.from_env().model_id,
     )
     clf = NliClassifier(nli_cfg)
     loaded = clf.load()
@@ -243,6 +259,8 @@ def main():
     parser.add_argument("--model-path", default=str(REPO_ROOT / "models" / "model_int8.onnx"))
     parser.add_argument("--tokenizer-path", default=str(REPO_ROOT / "models" / "tokenizer.json"))
     parser.add_argument("--config-path", default=str(REPO_ROOT / "models" / "config.json"))
+    parser.add_argument("--id-map-path", default=os.getenv("CUSTODIA_NLI_ID_MAP_PATH"))
+    parser.add_argument("--model-id", default=os.getenv("CUSTODIA_NLI_MODEL_ID"))
     parser.add_argument("--output", default=str(REPO_ROOT / "bench" / "nli_benchmark_results.json"))
     parser.add_argument("--repeats", type=int, default=3)
     args = parser.parse_args()
@@ -253,6 +271,8 @@ def main():
         tokenizer_path=Path(args.tokenizer_path),
         config_path=Path(args.config_path),
         output_path=Path(args.output),
+        id_map_path=Path(args.id_map_path) if args.id_map_path else None,
+        model_id=args.model_id,
         repeats=args.repeats,
     )
 

@@ -209,3 +209,58 @@ def test_missing_model_files():
     res = clf.classify("Evidence", "Claim")
     assert res.available is False
     assert "not found" in res.error.lower()
+
+def test_id_map_remapping():
+    """When id_map is configured, token IDs must be remapped using id_map."""
+    config = NliConfig(enabled=True)
+    session = MockSession()
+    tokenizer = MockTokenizer(token_count=5)
+    id2label = {0: "contradiction", 1: "entailment", 2: "neutral"}
+    # id_map where old id i maps to 100 + i, unk is 3
+    id_map = np.array([100, 101, 102, 103, 104, 105], dtype=np.int32)
+    clf = NliClassifier(config=config, session=session, tokenizer=tokenizer, id2label=id2label, id_map=id_map)
+
+    res = clf.classify("Premise", "Hypothesis")
+    assert res.available is True
+    # Verify input_ids passed to session.run
+    assert len(session.run_calls) == 1
+    passed_input_ids = session.run_calls[0]["input_ids"][0]
+    # Token IDs were 0, 1, 2, 3, 4 -> should be 100, 101, 102, 103, 104
+    assert np.array_equal(passed_input_ids, [100, 101, 102, 103, 104])
+
+
+def test_id_map_out_of_bounds_maps_to_unk():
+    """Token IDs exceeding id_map bounds must map safely to UNK token ID."""
+    config = NliConfig(enabled=True)
+    session = MockSession()
+    # MockTokenizer returns IDs [0, 1, 2, 3, 4, 100]
+    tok = MockTokenizer(token_count=6)
+    tok.encode = MagicMock(return_value=type("Encoding", (), {
+        "ids": [0, 1, 50, 999],
+        "attention_mask": [1, 1, 1, 1],
+        "type_ids": [0, 0, 0, 0]
+    })())
+    id2label = {0: "contradiction", 1: "entailment", 2: "neutral"}
+    # id_map has length 5 (indices 0..4). unk token index 3 maps to 42
+    id_map = np.array([10, 11, 12, 42, 14], dtype=np.int32)
+    clf = NliClassifier(config=config, session=session, tokenizer=tok, id2label=id2label, id_map=id_map)
+
+    res = clf.classify("Premise", "Hypothesis")
+    assert res.available is True
+    passed_ids = session.run_calls[0]["input_ids"][0]
+    # 0 -> 10, 1 -> 11, 50 -> 42 (out of bounds), 999 -> 42 (out of bounds)
+    assert np.array_equal(passed_ids, [10, 11, 42, 42])
+
+
+def test_id_map_loading_validation(tmp_path):
+    """Verifies id_map loading and validation rules."""
+    config = NliConfig(
+        enabled=True,
+        model_path="dummy.onnx",
+        tokenizer_path="dummy.json",
+        id_map_path=str(tmp_path / "nonexistent.npy")
+    )
+    clf = NliClassifier(config=config)
+    # File not found
+    assert clf.load() is False
+    assert "not found" in clf._load_error.lower()
