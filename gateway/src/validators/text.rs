@@ -72,7 +72,7 @@ pub fn validate_text_document(
                 || c_trim.starts_with('@')
                 || (c_trim.starts_with('-')
                     && c_trim.len() > 1
-                    && !c_trim.chars().nth(1).map_or(false, |c| c.is_ascii_digit()))
+                    && !c_trim.chars().nth(1).is_some_and(|c| c.is_ascii_digit()))
             {
                 contains_formulas = true;
                 if c_trim.contains("cmd")
