@@ -29,7 +29,7 @@ services:
       - key: CUSTODIA_FREE_CHECKS
         value: "1"
       - key: CUSTODIA_CORS_ORIGINS
-        sync: false        # Set to your Vercel URL, e.g. https://<app>.vercel.app
+        value: "https://custodia-lac.vercel.app"
       - key: DATABASE_URL
         sync: false        # Optional Neon Postgres connection string for persistent retention
       - key: CUSTODIA_NLI_ENABLED

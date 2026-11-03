@@ -25,14 +25,17 @@ async function call<T>(path: string, init?: RequestInit, timeoutMs = 45000): Pro
     }
     const body = await res.json().catch(() => null);
     if (!res.ok) {
+      if (res.status === 502 || res.status === 503) {
+        throw new ApiError("HTTP_" + res.status, "The Custodia server is waking up (Render free tier wakes in ~45s). Please wait a moment and try again.");
+      }
       const e = (body as { error?: { code?: string; message?: string } } | null)?.error;
       throw new ApiError(e?.code ?? "HTTP_" + res.status, e?.message ?? "The server could not complete the request.");
     }
     return body as T;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    if ((err as Error).name === "AbortError") throw new ApiError("TIMEOUT", "The check took too long. Try again, or shorten the evidence.");
-    throw new ApiError("NETWORK", "Could not reach the Custodia server. Check your connection and try again.");
+    if ((err as Error).name === "AbortError") throw new ApiError("TIMEOUT", "The check took too long. If the server was idle, it may still be waking up. Try again in 30 seconds.");
+    throw new ApiError("NETWORK", "Could not reach the Custodia server. If the server was idle, Render free tier takes ~45s to wake up. Check your connection and try again.");
   } finally { clearTimeout(timer); }
 }
 

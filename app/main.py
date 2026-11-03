@@ -212,14 +212,27 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
 
     cors_origins_raw = get_env("CORS_ORIGINS", "")
     origins = [o.strip() for o in cors_origins_raw.split(",") if o.strip()] if cors_origins_raw else []
-    if origins:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=origins,
-            allow_credentials=True,
-            allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-            allow_headers=["content-type", "x-delete-token", "origin"],
-        )
+    
+    # Safe built-in defaults: production Vercel frontend, local dev, and any vercel preview deployments
+    default_allowed_origins = [
+        "https://custodia-lac.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+    all_allowed_origins = list(set(origins + default_allowed_origins))
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=all_allowed_origins,
+        allow_origin_regex=r"^https://[a-zA-Z0-9-]+\.vercel\.app$",
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS", "PUT", "PATCH"],
+        allow_headers=["content-type", "x-delete-token", "origin", "authorization", "accept"],
+    )
 
     def check_csrf(request: Request):
         if request.method in ("POST", "PUT", "PATCH", "DELETE"):
@@ -227,17 +240,15 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
             if origin:
                 parsed_origin = origin.rstrip("/")
                 app_origin = f"{request.url.scheme}://{request.url.netloc}".rstrip("/")
-                valid_origins = {
-                    app_origin,
-                    "http://localhost:5173",
-                    "http://127.0.0.1:5173",
-                    "http://localhost:8000",
-                    "http://127.0.0.1:8000",
-                    "http://testserver",
-                }
-                for o in origins:
-                    valid_origins.add(o.rstrip("/"))
-                if parsed_origin not in valid_origins:
+                valid_origins = set(all_allowed_origins)
+                valid_origins.add(app_origin)
+                valid_origins.add("http://testserver")
+                
+                is_valid = (
+                    parsed_origin in valid_origins
+                    or bool(re.match(r"^https://[a-zA-Z0-9-]+\.vercel\.app$", parsed_origin))
+                )
+                if not is_valid:
                     raise ApiError(403, "CSRF_ORIGIN_MISMATCH", "Origin header does not match application origin.")
 
     @app.middleware("http")
