@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="docs/logo.png" alt="Custodia Logo" width="180" style="margin-bottom: 16px;" />
+
 [![CI Pipeline](https://github.com/anjishnughosh72501/Custodia/actions/workflows/ci.yml/badge.svg)](https://github.com/anjishnughosh72501/Custodia/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.14-3776AB?logo=python&logoColor=white)](app/)

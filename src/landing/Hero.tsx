@@ -40,7 +40,11 @@ export function Hero() {
     <section id="product" ref={heroSectionRef} className="hero-section hero-full-viewport" aria-label="Introduction">
       <div className="hero-grid">
         <div className="hero-copy">
-          <div className="hero-eyebrow-container">
+          <div className="hero-eyebrow-container" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginBottom: "14px" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+              <img src="/logo.png" alt="Custodia Logo" style={{ width: "32px", height: "32px", objectFit: "contain" }} />
+              <span style={{ fontWeight: 700, fontSize: "1.15rem", fontFamily: "var(--font-serif, Fraunces, serif)", letterSpacing: "-0.01em" }}>Custodia</span>
+            </div>
             <div className="sticker hero-eyebrow" role="status">
               {healthLoading || !health ? (
                 <span>Claim checker</span>

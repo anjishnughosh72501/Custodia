@@ -154,11 +154,7 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
       >
         <div className="shell-nav-inner">
           <Link href="/" className="shell-brand" aria-label="Custodia Home">
-            <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="#14213D" />
-              <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
-              <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
-            </svg>
+            <img src="/logo.png" alt="Custodia Logo" className="brand-mark" style={{ width: "34px", height: "34px", objectFit: "contain" }} />
             <span className="brand-name">Custodia</span>
           </Link>
 
@@ -303,11 +299,7 @@ export function MarketingShell({ children, notFound }: MarketingShellProps) {
           <div className="footer-top">
             <div className="footer-brand-col">
               <div className="brand">
-                <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-                  <rect width="32" height="32" rx="8" fill="#14213D" />
-                  <path d="M8 16h6m4 0h6" stroke="#FBF8F1" strokeWidth="2.4" strokeLinecap="round" />
-                  <circle cx="16" cy="16" r="3.2" fill="#2F7F79" />
-                </svg>
+                <img src="/logo.png" alt="Custodia Logo" className="brand-mark" style={{ width: "34px", height: "34px", objectFit: "contain" }} />
                 <span className="brand-name">Custodia</span>
               </div>
               <p className="footer-tagline">

@@ -53,6 +53,7 @@ export default function Login({ redirect = "/check" }: LoginProps) {
       <div className="shell auth-page-shell" style={{ maxWidth: "460px", margin: "48px auto 80px", padding: "0 16px" }}>
         <div className="panel auth-card" style={{ padding: "36px 32px" }}>
           <header style={{ textAlign: "center", marginBottom: "28px" }}>
+            <img src="/logo.png" alt="Custodia Logo" style={{ width: "72px", height: "72px", objectFit: "contain", margin: "0 auto 16px", display: "block" }} />
             <h1 style={{ fontFamily: "var(--font-serif, Fraunces, Georgia, serif)", fontSize: "1.8rem", margin: "0 0 8px 0" }}>
               Log in to Custodia
             </h1>
