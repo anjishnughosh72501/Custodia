@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { AuditRevision, Review } from '../types';
 import { getRevisions, recordDecision } from '../api';
 import { History, CheckCircle2, XCircle, Scale, Loader2, MessageSquare } from 'lucide-react';
@@ -27,6 +28,18 @@ export const ReviewerWorkspaceModal: React.FC<Props> = ({
       loadRevisions();
     }
   }, [isOpen, review.id]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const loadRevisions = async () => {
     setIsLoading(true);
@@ -60,7 +73,7 @@ export const ReviewerWorkspaceModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalNode = (
     <div className="reviewer-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reviewer-modal-title">
       <div className="reviewer-modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -217,4 +230,9 @@ export const ReviewerWorkspaceModal: React.FC<Props> = ({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalNode, document.body);
+  }
+  return modalNode;
 };

@@ -4,8 +4,8 @@
   "false_rejections": 0,
   "date": "Oct 28, 2026",
   "engine_version": "rules-1.1",
-  "latency_ms_total": 144.98,
-  "latency_ms_per_case": 1.25,
+  "latency_ms_total": 136.65,
+  "latency_ms_per_case": 1.18,
   "splits": {
     "dev": {
       "total": 66,

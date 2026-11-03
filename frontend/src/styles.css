@@ -3047,501 +3047,376 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
    Custodia Modal & Round 3 Verification Tool Theming
    ========================================================================== */
 
-/* Benchmark Dashboard Modal */
+
+/* Benchmark Dashboard Modal (Centered Popup Window) */
 .benchmark-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(20, 33, 61, 0.65);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  animation: reveal 0.15s var(--ease-out) both;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: rgba(20, 33, 61, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  animation: reveal 0.15s var(--ease-out) both !important;
 }
 
 .benchmark-modal-dialog {
-  width: 100%;
-  max-width: 780px;
-  max-height: 90vh;
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: var(--r-lg);
-  box-shadow: 6px 6px 0 var(--ink);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: pop 0.2s var(--ease-out) both;
+  width: 100% !important;
+  max-width: 560px !important;
+  max-height: 84vh !important;
+  background: var(--paper) !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: var(--r-nb) !important;
+  box-shadow: 6px 6px 0 var(--ink) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: auto !important;
+  animation: pop 0.2s var(--ease-out) both !important;
 }
 
 .benchmark-modal-header {
-  padding: 18px 24px;
-  background: var(--sunk);
-  border-bottom: 2px solid var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  padding: 14px 18px !important;
+  background: var(--sunk) !important;
+  border-bottom: 2px solid var(--ink) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  flex-shrink: 0 !important;
 }
 
 .benchmark-modal-header-left {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
 }
 
 .benchmark-icon-badge {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--r-nb);
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--warn);
-  box-shadow: 2px 2px 0 var(--ink);
-  flex-shrink: 0;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: var(--r-nb) !important;
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--warn) !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
+  flex-shrink: 0 !important;
 }
 
 .benchmark-modal-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
 }
 
 .benchmark-modal-title {
-  font: 700 1.25rem/1.2 var(--serif);
-  color: var(--ink);
-  margin: 0;
+  font: 700 1.15rem/1.2 var(--serif) !important;
+  color: var(--ink) !important;
+  margin: 0 !important;
 }
 
 .benchmark-pill-tag {
-  display: inline-flex;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: var(--ink);
-  color: var(--ivory);
-  padding: 3px 8px;
-  border-radius: 999px;
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  background: var(--ink) !important;
+  color: var(--ivory) !important;
+  padding: 2px 8px !important;
+  border-radius: 999px !important;
 }
 
 .benchmark-modal-sub {
-  font-size: 13px;
-  color: var(--ink-3);
-  margin-top: 3px;
+  font-size: 12px !important;
+  color: var(--ink-3) !important;
+  margin-top: 2px !important;
 }
 
 .benchmark-modal-close-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--ink);
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 2px 2px 0 var(--ink);
-  transition: all 0.1s ease;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: var(--ink) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
+  transition: all 0.1s ease !important;
+  flex-shrink: 0 !important;
 }
 
 .benchmark-modal-close-btn:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--ink);
-  background: var(--ivory);
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  background: var(--ivory) !important;
 }
 
 .benchmark-modal-close-btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--ink);
+  transform: translate(1px, 1px) !important;
+  box-shadow: 1px 1px 0 var(--ink) !important;
 }
 
 .benchmark-modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex: 1;
-  background: var(--ivory);
+  padding: 16px 18px !important;
+  overflow-y: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  flex: 1 !important;
+  background: var(--ivory) !important;
 }
 
-/* Executive Stats Banner */
 .benchmark-exec-banner {
-  background: var(--ink);
-  color: #fff;
-  border-radius: var(--r-nb);
-  padding: 20px 24px;
-  border: 2px solid var(--ink);
-  box-shadow: var(--nb-shadow);
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-radius: var(--r-nb) !important;
+  padding: 14px 16px !important;
+  border: 2px solid var(--ink) !important;
+  box-shadow: var(--nb-shadow) !important;
 }
 
 .benchmark-exec-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
 }
 
 .benchmark-exec-contract {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #93C5FD;
+  font-size: 10px !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  font-weight: 700 !important;
+  color: #94A3B8 !important;
 }
 
 .benchmark-exec-headline {
-  font: 700 1.6rem/1.2 var(--serif);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 4px;
-  color: #fff;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font: 700 1.25rem/1.2 var(--serif) !important;
+  margin-top: 2px !important;
+  color: #fff !important;
 }
 
 .benchmark-exec-desc {
-  font-size: 13px;
-  color: #CBD5E1;
-  max-width: 440px;
-  margin-top: 6px;
-  line-height: 1.45;
+  font-size: 11.5px !important;
+  color: #CBD5E1 !important;
+  margin-top: 4px !important;
+  max-width: 420px !important;
+  line-height: 1.4 !important;
 }
 
 .benchmark-run-action-btn {
-  background: var(--ok);
-  color: #fff;
-  border: 2px solid #000;
-  border-radius: var(--r-nb);
-  padding: 11px 20px;
-  font-weight: 700;
-  font-size: 13px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  box-shadow: 3px 3px 0 #000;
-  transition: all 0.1s ease;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: var(--ok) !important;
+  color: #fff !important;
+  padding: 8px 16px !important;
+  border-radius: var(--r-sm) !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  border: 1.5px solid var(--ink) !important;
+  cursor: pointer !important;
+  box-shadow: 2px 2px 0 #000 !important;
+  transition: all 0.1s ease !important;
+  white-space: nowrap !important;
 }
 
 .benchmark-run-action-btn:hover:not(:disabled) {
-  background: #276964;
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 #000;
+  background: #256B66 !important;
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0 #000 !important;
+}
+
+.benchmark-run-action-btn:active:not(:disabled) {
+  transform: translate(1px, 1px) !important;
+  box-shadow: 1px 1px 0 #000 !important;
 }
 
 .benchmark-run-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
 }
 
 .benchmark-live-metrics-strip {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  text-align: center;
+  margin-top: 12px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.2) !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 8px !important;
+  text-align: center !important;
 }
 
 .benchmark-metric-label {
-  font-size: 11px;
-  color: #94A3B8;
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 2px;
+  font-size: 10px !important;
+  color: #94A3B8 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
 }
 
 .benchmark-metric-val {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #fff;
-  font-family: var(--serif);
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  margin-top: 2px !important;
+  font-family: monospace !important;
 }
 
 .benchmark-metric-val.green {
-  color: #34D399;
+  color: #34D399 !important;
 }
 
-/* Grid & Cards */
 .benchmark-cards-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
-
-@media (max-width: 680px) {
-  .benchmark-cards-grid {
-    grid-template-columns: 1fr;
-  }
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
 }
 
 .benchmark-panel-card {
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: var(--r-nb);
-  padding: 18px;
-  box-shadow: var(--nb-shadow);
+  background: var(--paper) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: var(--r-nb) !important;
+  padding: 12px 14px !important;
+  box-shadow: var(--nb-shadow-press) !important;
 }
 
 .benchmark-panel-heading {
-  font: 700 12.5px/1.2 var(--sans);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink);
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--ink) !important;
+  margin-bottom: 10px !important;
 }
 
 .benchmark-split-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
 }
 
 .benchmark-split-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--ivory);
-  border: 1.5px solid var(--rule);
-  border-radius: 6px;
-  font-size: 13px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 6px 10px !important;
+  background: var(--ivory) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 4px !important;
+  font-size: 12px !important;
 }
 
 .benchmark-split-name {
-  font-weight: 650;
-  color: var(--ink);
+  font-weight: 650 !important;
+  color: var(--ink) !important;
 }
 
 .benchmark-split-badge {
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--ok);
+  font-weight: 700 !important;
+  font-size: 11.5px !important;
+  color: var(--ok) !important;
 }
 
 .benchmark-split-badge.adversarial {
-  color: var(--bad);
+  color: var(--bad) !important;
 }
 
 .benchmark-split-badge.baseline {
-  color: var(--ink-3);
+  color: var(--ink-3) !important;
 }
 
-/* Failure modes */
 .benchmark-failure-modes-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
 }
 
 .benchmark-failure-item {
-  padding: 8px 10px;
-  background: var(--ivory);
-  border: 1.5px solid var(--rule);
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--ink-2);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  padding: 4px 8px !important;
+  background: var(--ivory) !important;
+  border: 1px solid var(--rule) !important;
+  border-radius: 4px !important;
+  font-size: 11.5px !important;
+  font-weight: 550 !important;
+  color: var(--ink-2) !important;
 }
 
 .benchmark-modal-footer {
-  padding: 14px 24px;
-  background: var(--sunk);
-  border-top: 2px solid var(--ink);
-  display: flex;
-  justify-content: flex-end;
+  padding: 10px 18px !important;
+  background: var(--sunk) !important;
+  border-top: 2px solid var(--ink) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-shrink: 0 !important;
 }
 
 .benchmark-footer-close-btn {
-  background: var(--paper);
-  color: var(--ink);
-  border: 2px solid var(--ink);
-  border-radius: var(--r-nb);
-  padding: 8px 18px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: var(--nb-shadow);
-  transition: all 0.1s ease;
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 1.5px solid var(--ink) !important;
+  border-radius: var(--r-sm) !important;
+  padding: 6px 16px !important;
+  font-size: 12.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
+  transition: all 0.1s ease !important;
 }
 
 .benchmark-footer-close-btn:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--ink);
-  background: var(--ivory);
+  transform: translate(-1px, -1px) !important;
+  box-shadow: 3px 3px 0 var(--ink) !important;
+  background: var(--ivory) !important;
 }
 
-.benchmark-footer-close-btn:active {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--ink);
-}
-
-/* Reviewer Workspace Modal */
+/* Reviewer Workspace Modal (Centered Popup Window) */
 .reviewer-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(20, 33, 61, 0.65);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  animation: reveal 0.15s var(--ease-out) both;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  background: rgba(20, 33, 61, 0.65) !important;
+  backdrop-filter: blur(4px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+  animation: reveal 0.15s var(--ease-out) both !important;
 }
 
 .reviewer-modal-dialog {
-  width: 100%;
-  max-width: 740px;
-  max-height: 90vh;
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: var(--r-lg);
-  box-shadow: 6px 6px 0 var(--ink);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: pop 0.2s var(--ease-out) both;
+  width: 100% !important;
+  max-width: 580px !important;
+  max-height: 84vh !important;
+  background: var(--paper) !important;
+  border: 2px solid var(--ink) !important;
+  border-radius: var(--r-nb) !important;
+  box-shadow: 6px 6px 0 var(--ink) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: auto !important;
+  animation: pop 0.2s var(--ease-out) both !important;
 }
 
-.reviewer-modal-header {
-  padding: 18px 24px;
-  background: var(--sunk);
-  border-bottom: 2px solid var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.reviewer-modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  flex: 1;
-  background: var(--ivory);
-}
-
-.reviewer-claim-summary {
-  background: var(--paper);
-  border: 1.5px solid var(--rule-strong);
-  border-radius: var(--r-nb);
-  padding: 14px 18px;
-  font-size: 13px;
-  box-shadow: var(--shadow-1);
-}
-
-.reviewer-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-  padding-left: 20px;
-  border-left: 2px solid var(--rule-strong);
-  margin-left: 10px;
-}
-
-.reviewer-timeline-item {
-  position: relative;
-  background: var(--paper);
-  border: 1.5px solid var(--rule);
-  border-radius: 6px;
-  padding: 12px 16px;
-  font-size: 12.5px;
-}
-
-.reviewer-timeline-item::before {
-  content: "";
-  position: absolute;
-  left: -27px;
-  top: 14px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--ink);
-  border: 2px solid var(--paper);
-}
-
-.reviewer-form-box {
-  background: var(--paper);
-  border: 2px solid var(--ink);
-  border-radius: var(--r-nb);
-  padding: 18px;
-  box-shadow: var(--nb-shadow);
-}
-
-.reviewer-decision-buttons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-top: 12px;
-}
-
-@media (max-width: 640px) {
-  .reviewer-decision-buttons {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.reviewer-btn {
-  padding: 10px;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 12px;
-  border: 2px solid var(--ink);
-  box-shadow: 2px 2px 0 var(--ink);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  transition: all 0.1s ease;
-}
-
-.reviewer-btn:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--ink);
-}
-
-.reviewer-btn.approve {
-  background: var(--ok);
-  color: #fff;
-}
-
-.reviewer-btn.reject {
-  background: var(--bad);
-  color: #fff;
-}
-
-.reviewer-btn.legal {
-  background: var(--warn);
-  color: #fff;
-}
-
-.reviewer-btn.revise {
-  background: var(--paper);
-  color: var(--ink);
-}
 
 /* Quick Action Bar in Checker.tsx */
 .round3-action-bar {

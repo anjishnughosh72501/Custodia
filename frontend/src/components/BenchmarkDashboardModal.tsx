@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { BenchmarkResult } from '../types';
 import { runBenchmark } from '../api';
 import { Award, Play, Loader2, BarChart3, Zap, CheckCircle2 } from 'lucide-react';
@@ -12,6 +13,18 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
   const [isRunning, setIsRunning] = useState(false);
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const handleRunBenchmark = async () => {
     setIsRunning(true);
@@ -28,14 +41,20 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
 
   if (!isOpen) return null;
 
-  return (
-    <div className="benchmark-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="benchmark-modal-title">
+  const modalNode = (
+    <div
+      className="benchmark-modal-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="benchmark-modal-title"
+    >
       <div className="benchmark-modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="benchmark-modal-header">
           <div className="benchmark-modal-header-left">
             <div className="benchmark-icon-badge">
-              <Award style={{ width: 22, height: 22 }} />
+              <Award style={{ width: 18, height: 18 }} />
             </div>
             <div>
               <div className="benchmark-modal-title-row">
@@ -72,7 +91,7 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
                 </span>
                 <div className="benchmark-exec-headline">
                   <span>0 False Approvals</span>
-                  <CheckCircle2 style={{ width: 26, height: 26, color: '#34D399' }} />
+                  <CheckCircle2 style={{ width: 20, height: 20, color: '#34D399' }} />
                 </div>
                 <p className="benchmark-exec-desc">
                   Strictly withholds approval whenever wording outgrows, contradicts, or drops conditions from the evidence.
@@ -87,12 +106,12 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
               >
                 {isRunning ? (
                   <>
-                    <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
+                    <Loader2 style={{ width: 14, height: 14 }} className="animate-spin" />
                     <span>Evaluating 116 Cases...</span>
                   </>
                 ) : (
                   <>
-                    <Play style={{ width: 16, height: 16, fill: '#fff' }} />
+                    <Play style={{ width: 14, height: 14, fill: '#fff' }} />
                     <span>Run Live Evaluation</span>
                   </>
                 )}
@@ -131,7 +150,7 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
           <div className="benchmark-cards-grid">
             <div className="benchmark-panel-card">
               <h3 className="benchmark-panel-heading">
-                <BarChart3 style={{ width: 16, height: 16, color: 'var(--ok)' }} />
+                <BarChart3 style={{ width: 15, height: 15, color: 'var(--ok)' }} />
                 <span>Dataset Split Distribution</span>
               </h3>
               <div className="benchmark-split-list">
@@ -156,7 +175,7 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
 
             <div className="benchmark-panel-card">
               <h3 className="benchmark-panel-heading">
-                <Zap style={{ width: 16, height: 16, color: 'var(--warn)' }} />
+                <Zap style={{ width: 15, height: 15, color: 'var(--warn)' }} />
                 <span>Evaluated Failure Modes (17 Categories)</span>
               </h3>
               <div className="benchmark-failure-modes-grid">
@@ -188,4 +207,9 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalNode, document.body);
+  }
+  return modalNode;
 };
