@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { AuditRevision, Review } from '../types';
 import { getRevisions, recordDecision } from '../api';
-import { History, CheckCircle2, XCircle, Scale, Clock, UserCheck, Loader2, MessageSquare } from 'lucide-react';
+import { History, CheckCircle2, XCircle, Scale, Loader2, MessageSquare } from 'lucide-react';
 
 interface Props {
   review: Review;
@@ -61,107 +61,83 @@ export const ReviewerWorkspaceModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="reviewer-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="reviewer-modal-title">
+      <div className="reviewer-modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
-              <History className="w-5 h-5" />
+        <div className="reviewer-modal-header">
+          <div className="benchmark-modal-header-left">
+            <div className="benchmark-icon-badge">
+              <History style={{ width: 22, height: 22, color: 'var(--ink)' }} />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">Compliance Audit &amp; Reviewer Workspace</h2>
-              <p className="text-xs text-slate-500">Immutable version history &amp; human reviewer sign-off trail</p>
+              <h2 id="reviewer-modal-title" className="benchmark-modal-title">
+                Compliance Audit &amp; Reviewer Workspace
+              </h2>
+              <p className="benchmark-modal-sub">
+                Immutable version history &amp; human reviewer sign-off trail
+              </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-lg font-semibold px-2 py-1 rounded cursor-pointer"
+            className="benchmark-modal-close-btn"
+            aria-label="Close dialog"
           >
             ✕
           </button>
         </div>
 
         {/* Content body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        <div className="reviewer-modal-body">
           {/* Review Details summary */}
-          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/70 text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700">Review ID: <code className="text-indigo-600">{review.id}</code></span>
-              <span className="text-slate-500">Engine: {review.engine_version}</span>
+          <div className="reviewer-claim-summary">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '12px' }}>
+              <span style={{ fontWeight: 700 }}>Review ID: <code style={{ color: 'var(--ink)' }}>{review.id}</code></span>
+              <span style={{ color: 'var(--ink-3)' }}>Engine: {review.engine_version}</span>
             </div>
             <div>
-              <span className="font-semibold text-slate-600">Claim:</span>
-              <p className="text-slate-900 italic mt-0.5">{review.claim_text}</p>
+              <span style={{ fontWeight: 650, color: 'var(--ink-2)', fontSize: '12px' }}>Claim:</span>
+              <p style={{ fontStyle: 'italic', marginTop: 4, color: 'var(--ink)' }}>{review.claim_text}</p>
             </div>
           </div>
 
           {/* Audit Revisions Timeline */}
           <div>
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
+            <h3 style={{ font: '700 13px/1.2 var(--sans)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, color: 'var(--ink)' }}>
               Version History ({revisions.length} revision{revisions.length === 1 ? '' : 's'})
             </h3>
 
             {isLoading ? (
-              <div className="flex items-center justify-center py-8 text-slate-400">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                <span className="text-xs">Loading audit revisions...</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0', color: 'var(--ink-3)' }}>
+                <Loader2 style={{ width: 20, height: 20 }} className="animate-spin" />
+                <span style={{ marginLeft: 8, fontSize: '13px' }}>Loading audit revisions...</span>
               </div>
             ) : revisions.length === 0 ? (
-              <div className="text-center py-6 text-slate-400 text-xs border border-dashed rounded-lg">
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--ink-3)', fontSize: '13px', border: '1.5px dashed var(--rule-strong)', borderRadius: 'var(--r-nb)' }}>
                 No prior revisions recorded for this review yet.
               </div>
             ) : (
-              <div className="space-y-3 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-slate-200">
+              <div className="reviewer-timeline">
                 {revisions.map((rev) => {
-                  const isAuto = rev.reviewer_action === 'automated_check' || rev.reviewer_action === 'CREATE_REVIEW';
-                  const isApprove = rev.reviewer_action === 'APPROVED';
-                  const isReject = rev.reviewer_action === 'REJECTED';
-
                   return (
-                    <div key={rev.id} className="relative pl-8 text-xs">
-                      <div className="absolute left-2 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-white -translate-x-1/2 bg-indigo-600" />
-                      <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-2xs">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-bold text-slate-800">
-                            Version {rev.version} ·{' '}
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                isApprove
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : isReject
-                                  ? 'bg-rose-100 text-rose-800'
-                                  : isAuto
-                                  ? 'bg-slate-100 text-slate-700'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}
-                            >
-                              {rev.reviewer_action.replace(/_/g, ' ')}
-                            </span>
-                          </span>
-                          <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(rev.created_at).toLocaleString()}
-                          </span>
-                        </div>
-
-                        {rev.notes && (
-                          <p className="text-slate-600 mt-1 italic bg-slate-50 p-2 rounded border border-slate-100">
-                            "{rev.notes}"
-                          </p>
-                        )}
-
-                        <div className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-2">
-                          <span>Verdict: <strong>{rev.verdict?.status}</strong></span>
-                          {rev.reviewer_id && (
-                            <>
-                              <span>•</span>
-                              <span>Reviewer: {rev.reviewer_id}</span>
-                            </>
-                          )}
-                        </div>
+                    <div key={rev.id || rev.version} className="reviewer-timeline-item">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: 'var(--ink)' }}>
+                          Rev #{rev.version}: {rev.reviewer_action.replace(/_/g, ' ')}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--ink-3)' }}>
+                          {new Date(rev.created_at).toLocaleString()}
+                        </span>
                       </div>
+                      <div style={{ fontSize: '12px', color: 'var(--ink-2)' }}>
+                        Reviewer: <strong>{rev.reviewer_id || 'System'}</strong>
+                      </div>
+                      {rev.notes && (
+                        <p style={{ marginTop: 6, fontStyle: 'italic', background: 'var(--sunk)', padding: '6px 10px', borderRadius: 4, border: '1px solid var(--rule)' }}>
+                          "{rev.notes}"
+                        </p>
+                      )}
                     </div>
                   );
                 })}
@@ -169,82 +145,71 @@ export const ReviewerWorkspaceModal: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Reviewer Action Sign-Off Box */}
-          <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-indigo-600" />
-              <span>Record Human Reviewer Decision</span>
+          {/* Action Sign-Off Box */}
+          <div className="reviewer-form-box">
+            <h3 style={{ font: '700 13px/1.2 var(--sans)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, color: 'var(--ink)' }}>
+              Log Compliance Action
             </h3>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Add audit rationale, clinical reference notes, or legal feedback (optional)..."
+              style={{ width: '100%', minHeight: '70px', padding: '10px 12px', borderRadius: '6px', border: '1.5px solid var(--rule-strong)', background: 'var(--ivory)', fontSize: '13px', outline: 'none' }}
+            />
 
             {feedbackMsg && (
-              <div className="mb-3 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-900 font-medium">
+              <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, fontSize: '12.5px', background: 'var(--ok-bg)', color: 'var(--ok-ink)', border: '1px solid var(--ok)' }}>
                 {feedbackMsg}
               </div>
             )}
 
-            <div className="mb-3">
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                Audit / Compliance Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Document your reason for sign-off or requested revision..."
-                rows={2}
-                className="w-full p-2.5 border border-slate-300 rounded-lg text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-hidden"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="reviewer-decision-buttons">
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision('APPROVED')}
-                className="py-2 px-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="reviewer-btn approve"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Approve Claim</span>
+                <CheckCircle2 style={{ width: 14, height: 14 }} />
+                <span>Approve</span>
               </button>
-
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision('REJECTED')}
-                className="py-2 px-3 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="reviewer-btn reject"
               >
-                <XCircle className="w-3.5 h-3.5" />
-                <span>Reject Claim</span>
+                <XCircle style={{ width: 14, height: 14 }} />
+                <span>Reject</span>
               </button>
-
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision('FLAGGED_FOR_LEGAL')}
-                className="py-2 px-3 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="reviewer-btn legal"
               >
-                <Scale className="w-3.5 h-3.5" />
+                <Scale style={{ width: 14, height: 14 }} />
                 <span>Flag Legal</span>
               </button>
-
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={() => handleDecision('REVISED_EVIDENCE')}
-                className="py-2 px-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="reviewer-btn revise"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Revise Evidence</span>
+                <MessageSquare style={{ width: 14, height: 14 }} />
+                <span>Revise</span>
               </button>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex justify-end">
+        <div className="benchmark-modal-footer">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="benchmark-footer-close-btn"
           >
             Close Workspace
           </button>

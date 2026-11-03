@@ -657,26 +657,22 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
               </section>
 
               {/* CodeStar Round 3 Quick-Action Command Bar */}
-              <div className="flex flex-wrap items-center gap-2.5 mb-5 p-2 bg-slate-100/80 rounded-xl border border-slate-200">
+              <div className="round3-action-bar">
                 <button
                   type="button"
                   onClick={() => setShowMultiSource(!showMultiSource)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    showMultiSource
-                      ? "bg-indigo-600 text-white shadow-xs"
-                      : "bg-white text-slate-700 hover:text-indigo-600 border border-slate-200"
-                  }`}
+                  className={`round3-action-btn ${showMultiSource ? "active" : ""}`}
                 >
-                  <Layers className="w-3.5 h-3.5" />
-                  <span>{showMultiSource ? "Close Multi-Source Tools" : "Multi-Source & Documents (PDF, Registries)"}</span>
+                  <Layers style={{ width: 15, height: 15 }} />
+                  <span>{showMultiSource ? "Hide Multi-Source Tools" : "Multi-Source & Documents (PDF, Registries)"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setBenchmarkOpen(true)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="round3-action-btn"
                 >
-                  <Award className="w-3.5 h-3.5 text-amber-500" />
+                  <Award style={{ width: 15, height: 15, color: "var(--warn)" }} />
                   <span>Evaluation Benchmark (116 Cases)</span>
                 </button>
 
@@ -684,9 +680,9 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                   <button
                     type="button"
                     onClick={() => setReviewerWorkspaceOpen(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:text-indigo-600 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="round3-action-btn"
                   >
-                    <History className="w-3.5 h-3.5 text-indigo-500" />
+                    <History style={{ width: 15, height: 15, color: "var(--ok)" }} />
                     <span>Audit Trail &amp; Sign-Off</span>
                   </button>
                 )}

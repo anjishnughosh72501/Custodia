@@ -29,49 +29,52 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+    <div className="benchmark-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="benchmark-modal-title">
+      <div className="benchmark-modal-dialog" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600">
-              <Award className="w-6 h-6" />
+        <div className="benchmark-modal-header">
+          <div className="benchmark-modal-header-left">
+            <div className="benchmark-icon-badge">
+              <Award style={{ width: 22, height: 22 }} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold text-slate-900">CodeStar Round 3 Verification Benchmark</h2>
-                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider">
+              <div className="benchmark-modal-title-row">
+                <h2 id="benchmark-modal-title" className="benchmark-modal-title">
+                  Evaluation Benchmark
+                </h2>
+                <span className="benchmark-pill-tag">
                   116 Test Cases
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Expanded evaluation suite with train/dev/heldout splits &amp; zero false approvals contract
+              <p className="benchmark-modal-sub">
+                Expanded evaluation suite with dev/heldout splits &amp; zero false approvals contract
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-lg font-semibold px-2 py-1 rounded cursor-pointer"
+            className="benchmark-modal-close-btn"
+            aria-label="Close dialog"
           >
             ✕
           </button>
         </div>
 
-        {/* Modal content */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
+        {/* Modal content body */}
+        <div className="benchmark-modal-body">
           {/* Executive Stats Card */}
-          <div className="bg-linear-to-br from-indigo-900 to-slate-900 rounded-xl p-5 text-white shadow-md">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="benchmark-exec-banner">
+            <div className="benchmark-exec-top">
               <div>
-                <span className="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider">
+                <span className="benchmark-exec-contract">
                   Deterministic Safety Contract
                 </span>
-                <div className="text-2xl font-black mt-0.5 flex items-center gap-2">
+                <div className="benchmark-exec-headline">
                   <span>0 False Approvals</span>
-                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                  <CheckCircle2 style={{ width: 26, height: 26, color: '#34D399' }} />
                 </div>
-                <p className="text-xs text-slate-300 mt-1 max-w-md">
+                <p className="benchmark-exec-desc">
                   Strictly withholds approval whenever wording outgrows, contradicts, or drops conditions from the evidence.
                 </p>
               </div>
@@ -80,16 +83,16 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
                 type="button"
                 disabled={isRunning}
                 onClick={handleRunBenchmark}
-                className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 disabled:opacity-50 text-white font-semibold text-xs rounded-lg flex items-center gap-2 shadow-lg transition-all cursor-pointer"
+                className="benchmark-run-action-btn"
               >
                 {isRunning ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 style={{ width: 16, height: 16 }} className="animate-spin" />
                     <span>Evaluating 116 Cases...</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4 fill-white" />
+                    <Play style={{ width: 16, height: 16, fill: '#fff' }} />
                     <span>Run Live Evaluation</span>
                   </>
                 )}
@@ -97,87 +100,87 @@ export const BenchmarkDashboardModal: React.FC<Props> = ({ isOpen, onClose }) =>
             </div>
 
             {benchmarkData && (
-              <div className="mt-4 pt-4 border-t border-indigo-800/80 grid grid-cols-4 gap-2 text-center text-xs">
+              <div className="benchmark-live-metrics-strip">
                 <div>
-                  <div className="text-slate-400 text-[10px]">Total Cases</div>
-                  <div className="font-bold text-white text-base">{benchmarkData.total_cases}</div>
+                  <div className="benchmark-metric-label">Total Cases</div>
+                  <div className="benchmark-metric-val">{benchmarkData.total_cases}</div>
                 </div>
                 <div>
-                  <div className="text-emerald-400 text-[10px]">False Approvals</div>
-                  <div className="font-bold text-emerald-300 text-base">{benchmarkData.false_approvals}</div>
+                  <div className="benchmark-metric-label">False Approvals</div>
+                  <div className="benchmark-metric-val green">{benchmarkData.false_approvals}</div>
                 </div>
                 <div>
-                  <div className="text-emerald-400 text-[10px]">False Rejections</div>
-                  <div className="font-bold text-emerald-300 text-base">{benchmarkData.false_rejections}</div>
+                  <div className="benchmark-metric-label">False Rejections</div>
+                  <div className="benchmark-metric-val green">{benchmarkData.false_rejections}</div>
                 </div>
                 <div>
-                  <div className="text-indigo-300 text-[10px]">Latency</div>
-                  <div className="font-bold text-white text-base">{Math.round(benchmarkData.latency_ms_total)} ms</div>
+                  <div className="benchmark-metric-label">Execution Time</div>
+                  <div className="benchmark-metric-val">{Math.round(benchmarkData.latency_ms_total)} ms</div>
                 </div>
               </div>
             )}
           </div>
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-800">
+            <div className="banner bad" role="alert">
               {error}
             </div>
           )}
 
           {/* Benchmark Splits & Methodology */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/40">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <BarChart3 className="w-4 h-4 text-indigo-600" />
+          <div className="benchmark-cards-grid">
+            <div className="benchmark-panel-card">
+              <h3 className="benchmark-panel-heading">
+                <BarChart3 style={{ width: 16, height: 16, color: 'var(--ok)' }} />
                 <span>Dataset Split Distribution</span>
               </h3>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
-                  <span className="font-semibold text-slate-700">Dev Split (66 cases)</span>
-                  <span className="text-emerald-700 font-bold">100% Safety (0 FA)</span>
+              <div className="benchmark-split-list">
+                <div className="benchmark-split-item">
+                  <span className="benchmark-split-name">Dev Split (66 cases)</span>
+                  <span className="benchmark-split-badge">100% Safety (0 FA)</span>
                 </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
-                  <span className="font-semibold text-slate-700">Heldout Split (50 cases)</span>
-                  <span className="text-emerald-700 font-bold">100% Safety (0 FA)</span>
+                <div className="benchmark-split-item">
+                  <span className="benchmark-split-name">Heldout Split (50 cases)</span>
+                  <span className="benchmark-split-badge">100% Safety (0 FA)</span>
                 </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
-                  <span className="font-semibold text-slate-700">Baseline Tests (62 cases)</span>
-                  <span className="text-slate-600">Faithful &amp; standard edits</span>
+                <div className="benchmark-split-item">
+                  <span className="benchmark-split-name">Baseline Tests (62 cases)</span>
+                  <span className="benchmark-split-badge baseline">Faithful &amp; standard edits</span>
                 </div>
-                <div className="flex items-center justify-between p-2 bg-white rounded border border-slate-200">
-                  <span className="font-semibold text-slate-700">Adversarial Tests (54 cases)</span>
-                  <span className="text-rose-600 font-semibold">Prompt injections &amp; subtle lies</span>
+                <div className="benchmark-split-item">
+                  <span className="benchmark-split-name">Adversarial Tests (54 cases)</span>
+                  <span className="benchmark-split-badge adversarial">Prompt injections &amp; subtle lies</span>
                 </div>
               </div>
             </div>
 
-            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/40">
-              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Zap className="w-4 h-4 text-amber-600" />
+            <div className="benchmark-panel-card">
+              <h3 className="benchmark-panel-heading">
+                <Zap style={{ width: 16, height: 16, color: 'var(--warn)' }} />
                 <span>Evaluated Failure Modes (17 Categories)</span>
               </h3>
-              <div className="grid grid-cols-2 gap-1.5 text-[11px] text-slate-700">
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Causal Leaps</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Prompt Injections</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Population Widening</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Number Inflation</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Direction Flips</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Dropped Conditions</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Statistical Swaps</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Superlatives Without Comp</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Unit Incompatibilities</div>
-                <div className="p-1.5 bg-white rounded border border-slate-100">• Time Window Stretching</div>
+              <div className="benchmark-failure-modes-grid">
+                <div className="benchmark-failure-item">• Causal Leaps</div>
+                <div className="benchmark-failure-item">• Prompt Injections</div>
+                <div className="benchmark-failure-item">• Population Widening</div>
+                <div className="benchmark-failure-item">• Number Inflation</div>
+                <div className="benchmark-failure-item">• Direction Flips</div>
+                <div className="benchmark-failure-item">• Dropped Conditions</div>
+                <div className="benchmark-failure-item">• Statistical Swaps</div>
+                <div className="benchmark-failure-item">• Superlatives Without Comp</div>
+                <div className="benchmark-failure-item">• Unit Incompatibilities</div>
+                <div className="benchmark-failure-item">• Time Window Stretching</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex justify-end">
+        <div className="benchmark-modal-footer">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="benchmark-footer-close-btn"
           >
             Close Dashboard
           </button>
