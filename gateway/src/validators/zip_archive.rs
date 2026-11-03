@@ -79,7 +79,9 @@ pub fn validate_zip_container(
             Ok(f) => f,
             Err(e) => {
                 let err_str = e.to_string();
-                if err_str.to_lowercase().contains("password") || err_str.to_lowercase().contains("encrypted") {
+                if err_str.to_lowercase().contains("password")
+                    || err_str.to_lowercase().contains("encrypted")
+                {
                     return ValidationReport::failure(
                         "ENCRYPTED_ZIP_UNSUPPORTED",
                         format!("Entry #{} is password-encrypted; encrypted archives are not supported.", i),
@@ -105,8 +107,16 @@ pub fn validate_zip_container(
         let entry_name = file.name().to_string();
 
         // 3a. Path traversal prevention inside archive entry names
-        if file.enclosed_name().is_none() || entry_name.contains("..") || entry_name.starts_with('/') || entry_name.starts_with('\\') || entry_name.contains('\0') {
-            threats.push(format!("Entry '{}' contains illegal path traversal sequences.", entry_name));
+        if file.enclosed_name().is_none()
+            || entry_name.contains("..")
+            || entry_name.starts_with('/')
+            || entry_name.starts_with('\\')
+            || entry_name.contains('\0')
+        {
+            threats.push(format!(
+                "Entry '{}' contains illegal path traversal sequences.",
+                entry_name
+            ));
         }
 
         // 3b. Accumulate uncompressed size & calculate compression ratio
@@ -160,14 +170,20 @@ pub fn validate_zip_container(
 
         // 3e. Check for macros / embedded executable files (.bin, .vba, .exe)
         if entry_name.ends_with(".bin") || entry_name.contains("vbaProject") {
-            warnings.push(format!("Archive contains embedded binary or macro component: '{}'", entry_name));
+            warnings.push(format!(
+                "Archive contains embedded binary or macro component: '{}'",
+                entry_name
+            ));
         }
     }
 
     if !threats.is_empty() {
         return ValidationReport::failure(
             "MALICIOUS_ZIP_PATH",
-            format!("Archive contains path traversal threats: {}", threats.join("; ")),
+            format!(
+                "Archive contains path traversal threats: {}",
+                threats.join("; ")
+            ),
             sha256,
             byte_size,
             original_filename.to_string(),

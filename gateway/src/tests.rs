@@ -14,7 +14,8 @@ fn build_mock_docx() -> Vec<u8> {
         let mut zip = ZipWriter::new(std::io::Cursor::new(&mut buf));
         let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
         zip.start_file("[Content_Types].xml", options).unwrap();
-        zip.write_all(b"<?xml version=\"1.0\"?><Types></Types>").unwrap();
+        zip.write_all(b"<?xml version=\"1.0\"?><Types></Types>")
+            .unwrap();
         zip.start_file("word/document.xml", options).unwrap();
         zip.write_all(b"<w:document><w:body><w:p><w:r><w:t>In our trial of 200 users, speed rose by 30%.</w:t></w:r></w:p></w:body></w:document>").unwrap();
         zip.finish().unwrap();
@@ -28,9 +29,11 @@ fn build_mock_xlsx() -> Vec<u8> {
         let mut zip = ZipWriter::new(std::io::Cursor::new(&mut buf));
         let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
         zip.start_file("[Content_Types].xml", options).unwrap();
-        zip.write_all(b"<?xml version=\"1.0\"?><Types></Types>").unwrap();
+        zip.write_all(b"<?xml version=\"1.0\"?><Types></Types>")
+            .unwrap();
         zip.start_file("xl/workbook.xml", options).unwrap();
-        zip.write_all(b"<workbook><sheets><sheet name=\"Sheet1\"/></sheets></workbook>").unwrap();
+        zip.write_all(b"<workbook><sheets><sheet name=\"Sheet1\"/></sheets></workbook>")
+            .unwrap();
         zip.finish().unwrap();
     }
     buf
@@ -98,7 +101,8 @@ fn test_valid_csv() {
 #[test]
 fn test_valid_txt() {
     let config = GatewayConfig::default();
-    let txt_data = b"In our controlled trial of 300 patients, primary endpoint reached 65% over 24 weeks.";
+    let txt_data =
+        b"In our controlled trial of 300 patients, primary endpoint reached 65% over 24 weeks.";
     let report = validate_document(txt_data, "summary.txt", &config);
     assert!(report.valid);
     assert_eq!(report.file_type, Some(FileType::Txt));

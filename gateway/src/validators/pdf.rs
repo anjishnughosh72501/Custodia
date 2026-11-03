@@ -63,14 +63,18 @@ pub fn validate_pdf(
     let mut threats = Vec::new();
 
     if !has_eof {
-        warnings.push("PDF lacks standard %%EOF trailer marker; document may be truncated or non-linear.".to_string());
+        warnings.push(
+            "PDF lacks standard %%EOF trailer marker; document may be truncated or non-linear."
+                .to_string(),
+        );
     }
 
     // 3. Scan for executable active content strings (/Launch, /JavaScript, /JS)
     // Note: We flag as warning/threat rather than silently ignoring
     let text_sample = String::from_utf8_lossy(data);
     if text_sample.contains("/Launch") {
-        threats.push("PDF contains /Launch action which could execute external programs.".to_string());
+        threats
+            .push("PDF contains /Launch action which could execute external programs.".to_string());
     }
     if text_sample.contains("/JavaScript") || text_sample.contains("/JS") {
         warnings.push("PDF contains embedded JavaScript streams.".to_string());
@@ -88,7 +92,10 @@ pub fn validate_pdf(
     if !threats.is_empty() {
         return ValidationReport::failure(
             "SUSPICIOUS_PDF_ACTIONS",
-            format!("PDF rejected due to dangerous content: {}", threats.join("; ")),
+            format!(
+                "PDF rejected due to dangerous content: {}",
+                threats.join("; ")
+            ),
             sha256,
             byte_size,
             original_filename.to_string(),

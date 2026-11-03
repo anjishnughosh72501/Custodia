@@ -70,10 +70,16 @@ pub fn validate_text_document(
             if c_trim.starts_with('=')
                 || c_trim.starts_with('+')
                 || c_trim.starts_with('@')
-                || (c_trim.starts_with('-') && c_trim.len() > 1 && !c_trim.chars().nth(1).map_or(false, |c| c.is_ascii_digit()))
+                || (c_trim.starts_with('-')
+                    && c_trim.len() > 1
+                    && !c_trim.chars().nth(1).map_or(false, |c| c.is_ascii_digit()))
             {
                 contains_formulas = true;
-                if c_trim.contains("cmd") || c_trim.contains("powershell") || c_trim.contains("EXEC") || c_trim.contains("SYSTEM") {
+                if c_trim.contains("cmd")
+                    || c_trim.contains("powershell")
+                    || c_trim.contains("EXEC")
+                    || c_trim.contains("SYSTEM")
+                {
                     warnings.push(format!(
                         "Potentially dangerous DDE command execution string detected in line {}: '{}'",
                         idx + 1,
