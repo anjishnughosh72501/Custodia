@@ -15,7 +15,7 @@ COPY scripts/prepare_nli_model.py scripts/
 RUN python scripts/prepare_nli_model.py --dir /build/models
 
 # Stage 3: build the Rust Secure Document Gateway
-FROM rust:1.80-slim AS rust-builder
+FROM rust:1-slim AS rust-builder
 WORKDIR /build/gateway
 COPY gateway/Cargo.toml gateway/Cargo.lock ./
 COPY gateway/src ./src
