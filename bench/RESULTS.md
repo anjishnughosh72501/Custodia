@@ -3,7 +3,7 @@
 **Date**: Oct 28, 2026  
 **Engine Version**: rules-1.1  
 **Total Cases**: 116  
-**Execution Time**: 165.1 ms (1.42 ms/case)  
+**Execution Time**: 153.77 ms (1.33 ms/case)  
 
 ## Executive Summary
 
