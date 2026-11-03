@@ -1423,25 +1423,34 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
 .dimension-strip {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   align-items: stretch;
-  min-width: 175px;
+  min-width: 190px;
+  width: 210px;
+  flex-shrink: 0;
 }
 @media (max-width: 760px) {
   .dimension-strip {
     min-width: 0;
     width: 100%;
-    margin-top: 12px;
+    margin-top: 16px;
+    border-top: 1.5px solid var(--rule);
+    padding-top: 12px;
   }
   .dimension-strip-cap {
     text-align: left;
+  }
+  .dimension-strip-blocks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 6px;
   }
 }
 .dimension-strip-cap {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   color: var(--ink-3);
   text-align: right;
   margin-bottom: 2px;
@@ -1449,48 +1458,59 @@ footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
 .dimension-strip-blocks {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 .dim-strip-btn {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  height: auto;
-  min-height: 32px;
-  padding: 6px 10px;
-  border-radius: var(--r-sm);
-  border: 1.5px solid var(--ink);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 32px !important;
+  padding: 6px 10px !important;
+  border-radius: var(--r-sm) !important;
+  border: 1.5px solid var(--ink) !important;
   background: var(--paper);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  transition: transform .1s var(--ease-out), background-color .15s ease;
-  box-sizing: border-box;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  font-family: var(--sans) !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  transition: transform .1s var(--ease-out), background-color .15s ease, box-shadow .1s ease !important;
+  box-sizing: border-box !important;
+  box-shadow: 1px 1px 0 var(--ink) !important;
 }
 .dim-strip-btn svg {
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
+  width: 14px !important;
+  height: 14px !important;
 }
 .dim-strip-btn:hover {
-  transform: translateX(2px);
+  transform: translateX(2px) !important;
+  box-shadow: 2px 2px 0 var(--ink) !important;
 }
 .dim-strip-btn.ok {
-  background: var(--ok-bg);
-  color: var(--ok-ink);
+  background: var(--ok-bg) !important;
+  color: var(--ok-ink) !important;
+  border-color: var(--ok) !important;
 }
 .dim-strip-btn.bad {
-  background: var(--bad-bg);
-  color: var(--bad-ink);
+  background: var(--bad-bg) !important;
+  color: var(--bad-ink) !important;
+  border-color: var(--bad) !important;
 }
 .dim-strip-btn.warn {
-  background: var(--warn-bg);
-  color: var(--warn-ink);
+  background: var(--warn-bg) !important;
+  color: var(--warn-ink) !important;
+  border-color: var(--warn) !important;
 }
 .dim-strip-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  flex: 1 !important;
+  line-height: 1.2 !important;
 }
 
 /* Findings Toolbar */
