@@ -155,6 +155,7 @@ async fn execute_validation(
     }
 }
 
+#[allow(clippy::result_large_err)]
 async fn extract_from_multipart(
     multipart: &mut Multipart,
 ) -> Result<(String, Vec<u8>), (StatusCode, ValidationReport)> {

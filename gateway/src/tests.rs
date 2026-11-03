@@ -119,8 +119,10 @@ fn test_rejects_empty_file() {
 
 #[test]
 fn test_rejects_oversized_file() {
-    let mut config = GatewayConfig::default();
-    config.max_file_bytes = 100; // artificially small 100 bytes limit
+    let config = GatewayConfig {
+        max_file_bytes: 100, // artificially small 100 bytes limit
+        ..Default::default()
+    };
     let data = vec![b'A'; 200];
     let report = validate_document(&data, "big.txt", &config);
     assert!(!report.valid);
