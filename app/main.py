@@ -65,7 +65,7 @@ class RateLimiter:
 
     def prune(self):
         now = time.monotonic()
-        dead = [k for k, q in self.hits.items() if not q or now - q[-1] > 60]
+        dead = [k for k, q in self.hits.items() if not q or now - q[-1] > 60 or q[-1] <= 0.0]
         for k in dead:
             del self.hits[k]
         if len(self.hits) > self.max_tracked_keys:
