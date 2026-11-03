@@ -32,7 +32,7 @@ import { MultiSourceUploader } from "../components/MultiSourceUploader";
 import { ClaimComparisonView } from "../components/ClaimComparisonView";
 import { ReviewerWorkspaceModal } from "../components/ReviewerWorkspaceModal";
 import { BenchmarkDashboardModal } from "../components/BenchmarkDashboardModal";
-import { Layers, Award, History } from "lucide-react";
+import { Award, History, Upload } from "lucide-react";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -663,8 +663,8 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                   onClick={() => setShowMultiSource(!showMultiSource)}
                   className={`round3-action-btn ${showMultiSource ? "active" : ""}`}
                 >
-                  <Layers style={{ width: 15, height: 15 }} />
-                  <span>{showMultiSource ? "Hide Multi-Source Tools" : "Multi-Source & Documents (PDF, Registries)"}</span>
+                  <Upload style={{ width: 15, height: 15 }} />
+                  <span>{showMultiSource ? "Hide Document Tools" : "Upload Documents & Multi-Source (PDF, Registries)"}</span>
                 </button>
 
                 <button

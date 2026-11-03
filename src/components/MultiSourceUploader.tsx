@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import type { ParsedDocument, DocumentChunk, SourceRecord } from '../types';
+import type { ParsedDocument, SourceRecord } from '../types';
 import { uploadDocument, searchConnectors } from '../api';
-import { Upload, FileText, Search, Database, Check, Loader2, AlertCircle, ExternalLink, BookOpen, Layers } from 'lucide-react';
+import { Upload, FileText, Search, Database, Check, Loader2, AlertCircle, ExternalLink, Layers } from 'lucide-react';
 
 interface Props {
   onSelectEvidence: (combinedText: string, sourceIds: string[], chunkIds: string[]) => void;
@@ -13,6 +13,7 @@ export const MultiSourceUploader: React.FC<Props> = ({ onSelectEvidence, isVerif
   
   // Document state
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState<ParsedDocument[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedChunkIds, setSelectedChunkIds] = useState<Set<string>>(new Set());
@@ -116,69 +117,83 @@ export const MultiSourceUploader: React.FC<Props> = ({ onSelectEvidence, isVerif
   const totalSelected = selectedChunkIds.size + selectedSourceIds.size;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div className="multi-source-container">
       {/* Tab bar */}
-      <div className="flex border-b border-slate-200 bg-slate-50/70 px-4 pt-3 gap-2">
+      <div className="multi-source-tabs">
         <button
           type="button"
           onClick={() => setActiveTab('upload')}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-colors border-t border-x -mb-px cursor-pointer ${
-            activeTab === 'upload'
-              ? 'bg-white border-slate-200 text-indigo-700 shadow-xs'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          className={`multi-source-tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
         >
-          <Upload className="w-3.5 h-3.5" />
+          <Upload style={{ width: 14, height: 14 }} />
           <span>Upload Evidence Documents</span>
-          <span className="text-[10px] text-slate-400 font-normal">PDF, DOCX, XLSX, CSV, TXT</span>
+          <span style={{ fontSize: 11, opacity: 0.7, fontWeight: "normal" }}>PDF, DOCX, XLSX, CSV, TXT</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('registry')}
-          className={`flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-t-lg transition-colors border-t border-x -mb-px cursor-pointer ${
-            activeTab === 'registry'
-              ? 'bg-white border-slate-200 text-indigo-700 shadow-xs'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
+          className={`multi-source-tab-btn ${activeTab === 'registry' ? 'active' : ''}`}
         >
-          <Database className="w-3.5 h-3.5" />
+          <Database style={{ width: 14, height: 14 }} />
           <span>Live External Registries</span>
-          <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded font-medium">5 APIs</span>
+          <span style={{ fontSize: 10, background: "var(--ok-bg)", color: "var(--ok-ink)", padding: "1px 6px", borderRadius: 4, fontWeight: 700 }}>5 APIs</span>
         </button>
       </div>
 
-      <div className="p-5">
+      <div className="multi-source-body">
         {activeTab === 'upload' ? (
           <div>
             {/* Drag & drop upload box */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20 rounded-xl p-6 text-center cursor-pointer transition-all"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragOver(false);
+                handleFileUpload(e.dataTransfer.files);
+              }}
+              className={`multi-source-dropzone ${isDragOver ? 'drag-active' : ''}`}
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.docx,.xlsx,.csv,.txt"
+                accept=".pdf,.docx,.xlsx,.csv,.txt,.md"
                 onChange={(e) => handleFileUpload(e.target.files)}
-                className="hidden"
+                style={{ display: 'none' }}
               />
-              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-xs mx-auto mb-3 text-indigo-600">
-                {isUploading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Upload className="w-6 h-6" />}
+              <div className="multi-source-drop-icon">
+                {isUploading ? <Loader2 style={{ width: 20, height: 20 }} className="spin" /> : <Upload style={{ width: 20, height: 20 }} />}
               </div>
-              <div className="text-sm font-semibold text-slate-800">
+              <div className="multi-source-drop-title">
                 {isUploading ? 'Validating Magic Bytes & Parsing Passages...' : 'Upload Evidence Document'}
               </div>
-              <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
-                Upload benchmarks, clinical study reports, or data spreadsheets. Offsets and section coordinates are automatically indexed.
+              <p className="multi-source-drop-desc">
+                Upload benchmarks, clinical study reports, or data spreadsheets. Offsets, section coordinates, and table cells are automatically extracted and indexed.
               </p>
-              <div className="flex items-center justify-center gap-2 mt-3 text-[11px] text-slate-400 font-mono">
-                <span className="px-1.5 py-0.5 bg-slate-100 rounded">PDF</span>
-                <span className="px-1.5 py-0.5 bg-slate-100 rounded">DOCX</span>
-                <span className="px-1.5 py-0.5 bg-slate-100 rounded">XLSX</span>
-                <span className="px-1.5 py-0.5 bg-slate-100 rounded">CSV</span>
-                <span className="px-1.5 py-0.5 bg-slate-100 rounded">TXT</span>
+              <div className="multi-source-chips">
+                <span className="multi-source-chip">PDF</span>
+                <span className="multi-source-chip">DOCX</span>
+                <span className="multi-source-chip">XLSX</span>
+                <span className="multi-source-chip">CSV</span>
+                <span className="multi-source-chip">TXT</span>
+                <span className="multi-source-chip">MD</span>
               </div>
+              <button
+                type="button"
+                className="multi-source-choose-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
+                <Upload style={{ width: 13, height: 13 }} />
+                <span>Choose File to Upload</span>
+              </button>
             </div>
 
             {uploadError && (
@@ -270,9 +285,9 @@ export const MultiSourceUploader: React.FC<Props> = ({ onSelectEvidence, isVerif
                 <button
                   type="submit"
                   disabled={isSearching || !searchQuery.trim()}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="multi-source-search-btn"
                 >
-                  {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  {isSearching ? <Loader2 style={{ width: 14, height: 14 }} className="spin" /> : <Search style={{ width: 14, height: 14 }} />}
                   <span>Search Registries</span>
                 </button>
               </div>
@@ -365,17 +380,17 @@ export const MultiSourceUploader: React.FC<Props> = ({ onSelectEvidence, isVerif
 
         {/* Action button to load selected evidence into verification flow */}
         {totalSelected > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-200 flex items-center justify-between">
-            <span className="text-xs text-slate-600 font-medium">
+          <div className="multi-source-apply-bar">
+            <span className="multi-source-apply-count">
               <strong>{totalSelected}</strong> source item(s) selected
             </span>
             <button
               type="button"
               onClick={applySelectedEvidence}
               disabled={isVerifying}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+              className="multi-source-apply-btn"
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers style={{ width: 14, height: 14 }} />
               <span>Use Selected Sources as Evidence</span>
             </button>
           </div>

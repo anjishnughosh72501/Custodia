@@ -3,6 +3,8 @@ import type { Example, Health } from "./types";
 import { useDraft } from "./checker/useDraft";
 import { CHECKER_COPY } from "./checker/copy.checker";
 import { ScenarioPicker } from "./checker/ScenarioPicker";
+import { uploadDocument } from "./api";
+import { Upload, Loader2 } from "lucide-react";
 
 interface Props {
   claim: string;
@@ -23,8 +25,10 @@ interface Props {
 
 export function Workspace(p: Props) {
   const [showAll, setShowAll] = useState(false);
+  const [isParsingDoc, setIsParsingDoc] = useState(false);
   const claimRef = useRef<HTMLTextAreaElement>(null);
   const evidenceRef = useRef<HTMLTextAreaElement>(null);
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null);
 
   const { showBanner, restore, dismiss } = useDraft(p.claim, p.evidence);
 
@@ -82,23 +86,74 @@ export function Workspace(p: Props) {
     }
   };
 
-  const handleFileDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
-    e.preventDefault();
-    if (!e.dataTransfer?.files?.length) return;
-    const file = e.dataTransfer.files[0];
-    if (file.name.endsWith(".txt") || file.name.endsWith(".md")) {
+  const processEvidenceFile = async (file: File) => {
+    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+
+    // Plain text or Markdown files
+    if (ext === ".txt" || ext === ".md") {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const text = evt.target?.result as string;
         if (text) {
           p.setEvidence(text);
-          p.onToast?.(`Loaded ${file.name}`, "ok");
+          p.onToast?.(`Loaded ${file.name} (${text.length.toLocaleString()} chars)`, "ok");
         }
       };
+      reader.onerror = () => {
+        p.onToast?.(`Could not read ${file.name}`, "bad");
+      };
       reader.readAsText(file);
-    } else {
-      p.onToast?.("Please drop a plain text (.txt) or Markdown (.md) file", "warn");
+      return;
     }
+
+    // Rich documents & spreadsheets: PDF, DOCX, XLSX, CSV
+    if ([".pdf", ".docx", ".xlsx", ".csv"].includes(ext)) {
+      setIsParsingDoc(true);
+      p.onToast?.(`Parsing and extracting passages from ${file.name}…`, "ok");
+      try {
+        const parsed = await uploadDocument(file);
+        if (!parsed.chunks || parsed.chunks.length === 0) {
+          p.onToast?.(`No text passages could be extracted from ${file.name}.`, "warn");
+          return;
+        }
+        const combined = parsed.chunks
+          .map((c) => {
+            const loc = [
+              c.page_number ? `p. ${c.page_number}` : "",
+              c.paragraph_index ? `para. ${c.paragraph_index}` : "",
+              c.cell_reference ? `cell ${c.cell_reference}` : "",
+            ]
+              .filter(Boolean)
+              .join(", ");
+            const header = loc ? `[${file.name} · ${loc}]` : `[${file.name}]`;
+            return `${header}\n${c.text.trim()}`;
+          })
+          .join("\n\n---\n\n");
+
+        p.setEvidence(combined);
+        p.onToast?.(
+          `Extracted ${parsed.chunks.length} passage(s) from ${file.name} (${combined.length.toLocaleString()} chars)`,
+          "ok"
+        );
+      } catch (err: any) {
+        p.onToast?.(err.message || `Failed to extract passages from ${file.name}`, "bad");
+      } finally {
+        setIsParsingDoc(false);
+        if (evidenceFileInputRef.current) {
+          evidenceFileInputRef.current.value = "";
+        }
+      }
+      return;
+    }
+
+    p.onToast?.("Supported formats: .pdf, .docx, .xlsx, .csv, .txt, .md", "warn");
+  };
+
+  const handleFileDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    if (!e.dataTransfer?.files?.length) return;
+    const file = e.dataTransfer.files[0];
+    processEvidenceFile(file);
   };
 
   const handleRestoreDraft = () => {
@@ -273,6 +328,38 @@ export function Workspace(p: Props) {
           <div className="field-header field-meta">
             <label htmlFor="evidence">Supporting evidence</label>
             <div className="field-quick-actions">
+              <input
+                ref={evidenceFileInputRef}
+                type="file"
+                accept=".pdf,.docx,.xlsx,.csv,.txt,.md"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  if (e.target.files?.[0]) {
+                    processEvidenceFile(e.target.files[0]);
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn-link quick-btn upload-doc-btn"
+                onClick={() => evidenceFileInputRef.current?.click()}
+                disabled={isParsingDoc || p.loading}
+                aria-label="Upload document as evidence (PDF, DOCX, XLSX, CSV, TXT, MD)"
+                title="Upload PDF, DOCX, XLSX, CSV, TXT, or MD"
+              >
+                {isParsingDoc ? (
+                  <>
+                    <Loader2 style={{ width: 12, height: 12, marginRight: 4, verticalAlign: "middle" }} className="spin inline-spin" />
+                    <span>Extracting…</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload style={{ width: 12, height: 12, marginRight: 4, verticalAlign: "middle" }} />
+                    <span>Upload file</span>
+                  </>
+                )}
+              </button>
+              <span className="dot-sep" aria-hidden="true">·</span>
               <button
                 type="button"
                 className="btn-link quick-btn"
@@ -297,7 +384,7 @@ export function Workspace(p: Props) {
             </div>
           </div>
           <p className="hint" id="ev-h">
-            Paste the source text (or drag & drop .txt / .md). Treated as data, never as instructions.
+            Paste source text or drop a file (.pdf, .docx, .xlsx, .csv, .txt). Extracted safely as data, never executed.
           </p>
           <textarea
             ref={evidenceRef}
