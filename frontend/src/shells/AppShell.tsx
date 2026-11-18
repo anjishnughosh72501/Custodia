@@ -3,6 +3,9 @@ import { Link } from "../router";
 import { getHealth } from "../api";
 import type { Health } from "../types";
 import { UserMenu } from "../auth/UserMenu";
+import { Phase17DemoModal } from "../components/Phase17DemoModal";
+import { BrandGovernanceWorkspaceModal } from "../components/BrandGovernanceWorkspaceModal";
+import { ShieldCheck, Sparkles } from "lucide-react";
 
 interface AppShellProps {
   children: ReactNode;
@@ -19,6 +22,8 @@ export function AppShell({
 }: AppShellProps) {
   const [health, setHealth] = useState<Health | null>(null);
   const [healthErr, setHealthErr] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [showGovModal, setShowGovModal] = useState(false);
 
   useEffect(() => {
     getHealth().then(setHealth).catch(() => setHealthErr(true));
@@ -45,6 +50,33 @@ export function AppShell({
             <Link href="/examples" className="app-bar-navlink">
               Examples
             </Link>
+            <button
+              type="button"
+              className="app-bar-navlink"
+              onClick={() => setShowGovModal(true)}
+              style={{ background: "transparent", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 5, padding: "0 8px" }}
+            >
+              <ShieldCheck size={14} style={{ color: "#2A9D8F" }} /> Brand DNA
+            </button>
+            <button
+              type="button"
+              className="app-bar-navlink"
+              onClick={() => setShowDemoModal(true)}
+              style={{
+                background: "rgba(0, 240, 255, 0.12)",
+                border: "1px solid rgba(0, 240, 255, 0.35)",
+                color: "#00F0FF",
+                borderRadius: 4,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "2px 8px",
+                fontWeight: 600,
+              }}
+            >
+              <Sparkles size={13} /> Phase 17 Showcase
+            </button>
             <a
               href="https://github.com/anjishnughosh72501/Custodia"
               target="_blank"
@@ -125,6 +157,9 @@ export function AppShell({
       <main id="main-content" className="checker-main">
         {children}
       </main>
+
+      <BrandGovernanceWorkspaceModal isOpen={showGovModal} onClose={() => setShowGovModal(false)} />
+      <Phase17DemoModal isOpen={showDemoModal} onClose={() => setShowDemoModal(false)} />
     </div>
   );
 }

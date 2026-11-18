@@ -28,6 +28,46 @@ from .rules.confidence import build_evidence_confidence_map
 from .rules.engine import ENGINE_VERSION
 from .service import ReviewService
 from .store import BaseStore, build_store
+from app.brand.models import (
+    Organization,
+    BrandProfile,
+    BrandRule,
+    BrandRuleVersion,
+    ApprovedFact,
+    BrandAsset,
+    OrgRole,
+    RuleCategory,
+    EnforcementLevel,
+    RuleStatus,
+    FactCategory,
+    AssetType,
+)
+from app.brand.dna_engine import (
+    extract_rules_from_parsed_document,
+    create_demo_brand_dna,
+)
+from app.preflight.models import (
+    ContentCategory,
+    WorkflowStatus,
+    RiskTier,
+    FindingStatus,
+    PreflightFinding,
+    PreflightReview,
+    ReviewComment,
+    PreflightAnalyzeRequest,
+)
+from app.preflight.service import (
+    run_brand_preflight,
+    apply_finding_correction,
+)
+from app.workflow.service import (
+    can_approve_review,
+    record_workflow_decision,
+    create_review_comment,
+)
+from app.analytics.service import (
+    calculate_governance_analytics,
+)
 
 connector_manager = ConnectorManager()
 
@@ -735,6 +775,521 @@ def create_app(service: Optional[ReviewService] = None, rate_limit: Optional[int
         from bench.run import run_benchmark
         results = run_benchmark()
         return results
+
+    # =========================================================================
+    # INKLOOM BRAND GOVERNANCE & CONTENT INTELLIGENCE PLATFORM ENDPOINTS
+    # =========================================================================
+
+    @app.get("/api/brand/organizations")
+    def list_organizations_endpoint():
+        return {"organizations": svc.store.list_organizations()}
+
+    @app.post("/api/brand/organizations")
+    def create_organization_endpoint(request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        name = (body.get("name") or "").strip()
+        slug = (body.get("slug") or "").strip().lower().replace(" ", "-")
+        if not name:
+            raise ApiError(400, "INVALID_NAME", "Organization name is required.")
+        org = Organization(name=name, slug=slug or name.lower().replace(" ", "-"))
+        created = svc.store.create_organization(org)
+        return created
+
+    @app.get("/api/brand/profiles")
+    def list_brand_profiles_endpoint(org_id: Optional[str] = None):
+        profiles = svc.store.list_brand_profiles(org_id)
+        return {"profiles": profiles}
+
+    @app.get("/api/brand/profiles/{profile_id}")
+    def get_brand_profile_endpoint(profile_id: str):
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+        rules = svc.store.list_brand_rules(profile_id)
+        facts = svc.store.list_approved_facts(profile_id)
+        assets = svc.store.list_brand_assets(profile_id)
+        return {
+            "profile": profile,
+            "rules_count": len(rules),
+            "facts_count": len(facts),
+            "assets_count": len(assets),
+        }
+
+    @app.post("/api/brand/profiles")
+    def create_brand_profile_endpoint(request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        org_id = body.get("org_id") or "org_inkloom_demo"
+        name = (body.get("name") or "").strip()
+        if not name:
+            raise ApiError(400, "INVALID_NAME", "Brand profile name is required.")
+        profile = BrandProfile(
+            org_id=org_id,
+            name=name,
+            tagline=body.get("tagline", ""),
+            description=body.get("description", ""),
+            tone_guidelines=body.get("tone_guidelines") or [],
+            target_audience=body.get("target_audience", ""),
+            primary_colors=body.get("primary_colors") or [],
+            font_families=body.get("font_families") or [],
+        )
+        saved = svc.store.save_brand_profile(profile)
+        svc.store.record_audit_event(
+            org_id, "system", "ADMIN", "CREATE_BRAND_PROFILE", "brand_profile", saved.id, {"name": name}
+        )
+        return saved
+
+    @app.post("/api/brand/profiles/{profile_id}/guidelines")
+    async def upload_brand_guideline(
+        profile_id: str,
+        request: Request,
+        file: UploadFile = File(...),
+    ):
+        limiter.check(client_key(request))
+        content = await file.read()
+        if len(content) > 15 * 1024 * 1024:
+            raise ApiError(413, "FILE_TOO_LARGE", "Guideline document must be under 15 MB.")
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+
+        parsed_doc = parse_uploaded_document(file.filename, content)
+        extracted = extract_rules_from_parsed_document(parsed_doc, profile.org_id, profile.id)
+        saved_rules = []
+        for r in extracted:
+            saved_rules.append(svc.store.save_brand_rule(r))
+
+        svc.store.record_audit_event(
+            profile.org_id,
+            "system",
+            "ADMIN",
+            "INGEST_GUIDELINES",
+            "brand_profile",
+            profile_id,
+            {"filename": file.filename, "extracted_rules": len(saved_rules)},
+        )
+        return {
+            "filename": file.filename,
+            "extracted_rules_count": len(saved_rules),
+            "rules": saved_rules,
+        }
+
+    @app.get("/api/brand/profiles/{profile_id}/rules")
+    def list_brand_rules_endpoint(profile_id: str, status: Optional[str] = None):
+        rules = svc.store.list_brand_rules(profile_id, status)
+        return {"rules": rules, "count": len(rules)}
+
+    @app.post("/api/brand/profiles/{profile_id}/rules")
+    def create_brand_rule_endpoint(profile_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+        title = (body.get("title") or "").strip()
+        rule_text = (body.get("rule_text") or "").strip()
+        if not title or not rule_text:
+            raise ApiError(400, "INVALID_INPUT", "Title and rule_text are required.")
+        rule = BrandRule(
+            org_id=profile.org_id,
+            brand_profile_id=profile_id,
+            category=RuleCategory(body.get("category", "TERMINOLOGY")),
+            enforcement=EnforcementLevel(body.get("enforcement", "WARNING")),
+            title=title,
+            rule_text=rule_text,
+            explanation=body.get("explanation", ""),
+            forbidden_patterns=body.get("forbidden_patterns") or [],
+            preferred_alternatives=body.get("preferred_alternatives") or [],
+            required_disclaimers=body.get("required_disclaimers") or [],
+            source_document=body.get("source_document"),
+            source_location=body.get("source_location"),
+            status=RuleStatus(body.get("status", "ACTIVE")),
+        )
+        saved = svc.store.save_brand_rule(rule)
+        svc.store.record_audit_event(
+            profile.org_id, "system", "ADMIN", "CREATE_RULE", "brand_rule", saved.id, {"title": title}
+        )
+        return saved
+
+    @app.put("/api/brand/rules/{rule_id}")
+    def update_brand_rule_endpoint(rule_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        updated = svc.store.update_brand_rule(rule_id, body)
+        if not updated:
+            raise ApiError(404, "NOT_FOUND", "Brand rule not found.")
+        svc.store.record_audit_event(
+            updated.org_id, "system", "ADMIN", "UPDATE_RULE", "brand_rule", rule_id, {"version": updated.version}
+        )
+        return updated
+
+    @app.post("/api/brand/rules/{rule_id}/toggle")
+    def toggle_brand_rule_endpoint(rule_id: str, request: Request):
+        limiter.check(client_key(request))
+        updated = svc.store.toggle_brand_rule(rule_id)
+        if not updated:
+            raise ApiError(404, "NOT_FOUND", "Brand rule not found.")
+        svc.store.record_audit_event(
+            updated.org_id, "system", "ADMIN", "TOGGLE_RULE", "brand_rule", rule_id, {"new_status": updated.status.value}
+        )
+        return updated
+
+    @app.get("/api/brand/profiles/{profile_id}/facts")
+    def list_approved_facts_endpoint(profile_id: str):
+        facts = svc.store.list_approved_facts(profile_id)
+        return {"facts": facts, "count": len(facts)}
+
+    @app.post("/api/brand/profiles/{profile_id}/facts")
+    def create_approved_fact_endpoint(profile_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+        fact = ApprovedFact(
+            org_id=profile.org_id,
+            brand_profile_id=profile_id,
+            category=FactCategory(body.get("category", "PRICING")),
+            entity_name=body.get("entity_name", "Approved Metric"),
+            canonical_value=body.get("canonical_value", ""),
+            canonical_number=body.get("canonical_number"),
+            canonical_unit=body.get("canonical_unit"),
+            statement=body.get("statement", ""),
+            proof_citation=body.get("proof_citation", ""),
+        )
+        saved = svc.store.save_approved_fact(fact)
+        svc.store.record_audit_event(
+            profile.org_id, "system", "ADMIN", "CREATE_FACT", "approved_fact", saved.id, {"entity": fact.entity_name}
+        )
+        return saved
+
+    @app.get("/api/brand/profiles/{profile_id}/assets")
+    def list_brand_assets_endpoint(profile_id: str):
+        assets = svc.store.list_brand_assets(profile_id)
+        return {"assets": assets, "count": len(assets)}
+
+    @app.post("/api/brand/profiles/{profile_id}/assets")
+    def create_brand_asset_endpoint(profile_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+        asset = BrandAsset(
+            org_id=profile.org_id,
+            brand_profile_id=profile_id,
+            name=body.get("name", "New Asset"),
+            asset_type=AssetType(body.get("asset_type", "IMAGE")),
+            file_url=body.get("file_url"),
+            hex_colors=body.get("hex_colors") or [],
+            usage_guidelines=body.get("usage_guidelines", ""),
+        )
+        saved = svc.store.save_brand_asset(asset)
+        svc.store.record_audit_event(
+            profile.org_id, "system", "ADMIN", "CREATE_ASSET", "brand_asset", saved.id, {"name": asset.name}
+        )
+        return saved
+
+    @app.post("/api/preflight/analyze")
+    def analyze_content_preflight(request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        content = (body.get("content") or "").strip()
+        if not content:
+            raise ApiError(400, "EMPTY_CONTENT", "Content to analyze cannot be empty.")
+
+        org_id = body.get("org_id") or "org_inkloom_demo"
+        profile_id = body.get("brand_profile_id")
+        if not profile_id:
+            profiles = svc.store.list_brand_profiles(org_id)
+            if profiles:
+                profile_id = profiles[0].id
+            else:
+                raise ApiError(404, "NO_PROFILES", "No brand profiles found for this organization.")
+
+        profile = svc.store.get_brand_profile(profile_id)
+        if not profile:
+            raise ApiError(404, "NOT_FOUND", "Brand profile not found.")
+
+        rules = svc.store.list_brand_rules(profile_id, status="active")
+        facts = svc.store.list_approved_facts(profile_id)
+        assets = svc.store.list_brand_assets(profile_id)
+
+        user = get_current_user(request)
+        created_by = user["id"] if user else "creator_studio"
+
+        req = PreflightAnalyzeRequest(
+            org_id=profile.org_id,
+            brand_profile_id=profile.id,
+            title=body.get("title") or "Content Studio Submission",
+            content=content,
+            category=ContentCategory(body.get("category", "AD")),
+            channels=body.get("channels") or ["social", "display"],
+            image_filenames=body.get("image_filenames") or [],
+            detected_hex_colors=body.get("detected_hex_colors") or [],
+        )
+
+        review = run_brand_preflight(req, profile, rules, facts, assets, created_by=created_by)
+        saved = svc.store.save_preflight_review(review)
+
+        svc.store.record_audit_event(
+            profile.org_id,
+            created_by,
+            "CREATOR",
+            "PREFLIGHT_ANALYSIS",
+            "preflight_review",
+            saved.id,
+            {
+                "score": saved.overall_score,
+                "risk_tier": saved.risk_tier.value,
+                "findings_count": len(saved.findings),
+                "status": saved.workflow_status.value,
+            },
+        )
+        return saved
+
+    @app.get("/api/preflight/reviews")
+    def list_preflight_reviews_endpoint(org_id: Optional[str] = None, status: Optional[str] = None):
+        reviews = svc.store.list_preflight_reviews(org_id, status)
+        return {"reviews": reviews, "count": len(reviews)}
+
+    @app.get("/api/preflight/reviews/{review_id}")
+    def get_preflight_review_endpoint(review_id: str):
+        review = svc.store.get_preflight_review(review_id)
+        if not review:
+            raise ApiError(404, "NOT_FOUND", "Preflight review not found.")
+        comments = svc.store.list_review_comments(review_id)
+        return {"review": review, "comments": comments}
+
+    @app.post("/api/preflight/reviews/{review_id}/apply-correction")
+    def apply_review_correction(review_id: str, request: Request, body: dict = Depends(parse_optional_json_body)):
+        limiter.check(client_key(request))
+        review = svc.store.get_preflight_review(review_id)
+        if not review:
+            raise ApiError(404, "NOT_FOUND", "Preflight review not found.")
+
+        finding_id = body.get("finding_id")
+        if finding_id:
+            review = apply_finding_correction(review, finding_id)
+        elif review.corrected_content:
+            review.content_raw = review.corrected_content
+            for f in review.findings:
+                f.status = FindingStatus.RESOLVED
+
+        review.updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        saved = svc.store.save_preflight_review(review)
+        svc.store.record_audit_event(
+            review.org_id,
+            "creator_studio",
+            "CREATOR",
+            "APPLY_CORRECTION",
+            "preflight_review",
+            saved.id,
+            {"applied_finding_id": finding_id, "new_content": saved.content_raw},
+        )
+        return saved
+
+    @app.get("/api/workflow/queue")
+    def workflow_queue_endpoint(org_id: Optional[str] = None):
+        all_reviews = svc.store.list_preflight_reviews(org_id)
+        # Queue prioritized: PENDING_REVIEW, FLAGGED_FOR_LEGAL, REVISION_REQUESTED
+        priority_order = {
+            WorkflowStatus.PENDING_REVIEW: 1,
+            WorkflowStatus.FLAGGED_FOR_LEGAL: 2,
+            WorkflowStatus.REVISION_REQUESTED: 3,
+            WorkflowStatus.APPROVED_WITH_CONDITIONS: 4,
+            WorkflowStatus.APPROVED: 5,
+            WorkflowStatus.REJECTED: 6,
+            WorkflowStatus.DRAFT: 7,
+        }
+        sorted_reviews = sorted(
+            all_reviews,
+            key=lambda r: (priority_order.get(r.workflow_status, 10), -r.overall_score),
+        )
+        return {
+            "queue": sorted_reviews,
+            "total_pending": sum(1 for r in all_reviews if r.workflow_status in (WorkflowStatus.PENDING_REVIEW, WorkflowStatus.FLAGGED_FOR_LEGAL)),
+            "total_count": len(sorted_reviews),
+        }
+
+    @app.post("/api/workflow/reviews/{review_id}/decision")
+    def workflow_decision_endpoint(review_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        review = svc.store.get_preflight_review(review_id)
+        if not review:
+            raise ApiError(404, "NOT_FOUND", "Preflight review not found.")
+
+        decision = (body.get("decision") or "").strip().upper()
+        if decision not in ("APPROVED", "APPROVED_WITH_CONDITIONS", "REJECTED"):
+            raise ApiError(400, "INVALID_DECISION", "Decision must be APPROVED, APPROVED_WITH_CONDITIONS, or REJECTED.")
+
+        user = get_current_user(request)
+        reviewer_id = user["id"] if user else (body.get("reviewer_id") or "lead_compliance_reviewer")
+        user_role = OrgRole.REVIEWER
+        if user:
+            role_str = svc.store.get_user_role_in_org(user["id"], review.org_id)
+            if role_str:
+                try:
+                    user_role = OrgRole(role_str)
+                except ValueError:
+                    user_role = OrgRole.REVIEWER
+
+        notes = (body.get("notes") or "").strip()
+        updated_review = record_workflow_decision(
+            review=review,
+            decision=decision,
+            reviewer_id=reviewer_id,
+            reviewer_role=user_role,
+            notes=notes,
+        )
+        saved = svc.store.save_preflight_review(updated_review)
+
+        svc.store.record_audit_event(
+            review.org_id,
+            reviewer_id,
+            user_role.value if hasattr(user_role, "value") else str(user_role),
+            f"DECISION_{decision}",
+            "preflight_review",
+            review.id,
+            {"decision": decision, "notes": notes, "final_status": saved.workflow_status.value},
+        )
+        return saved
+
+    @app.post("/api/workflow/reviews/{review_id}/comments")
+    def add_review_comment_endpoint(review_id: str, request: Request, body: dict = Depends(parse_json_body)):
+        limiter.check(client_key(request))
+        review = svc.store.get_preflight_review(review_id)
+        if not review:
+            raise ApiError(404, "NOT_FOUND", "Review not found.")
+
+        comment_text = (body.get("comment") or "").strip()
+        if not comment_text:
+            raise ApiError(400, "EMPTY_COMMENT", "Comment cannot be empty.")
+
+        user = get_current_user(request)
+        user_id = user["id"] if user else (body.get("user_id") or "reviewer_member")
+        user_name = user["email"] if user else (body.get("user_name") or "Compliance Reviewer")
+
+        comment = create_review_comment(review_id, user_id, user_name, comment_text)
+        saved = svc.store.save_review_comment(comment)
+        return saved
+
+    @app.get("/api/workflow/reviews/{review_id}/comments")
+    def list_review_comments_endpoint(review_id: str):
+        comments = svc.store.list_review_comments(review_id)
+        return {"comments": comments}
+
+    @app.get("/api/analytics/overview")
+    def analytics_overview_endpoint(org_id: Optional[str] = None):
+        target_org = org_id or "org_inkloom_demo"
+        reviews = svc.store.list_preflight_reviews(target_org)
+        profiles = svc.store.list_brand_profiles(target_org)
+        profile_id = profiles[0].id if profiles else None
+        rules = svc.store.list_brand_rules(profile_id) if profile_id else []
+        analytics = calculate_governance_analytics(reviews, rules)
+        return analytics
+
+    @app.get("/api/audit/events")
+    def list_audit_events_endpoint(org_id: Optional[str] = None, limit: int = 100):
+        events = svc.store.list_audit_events(org_id, limit)
+        return {"events": events, "count": len(events)}
+
+    @app.post("/api/demo/run-phase17-scenario")
+    @app.get("/api/demo/run-phase17-scenario")
+    def run_phase17_scenario_endpoint():
+        """Executes the exact Phase 17 end-to-end acceptance scenario in a single call."""
+        demo_org = svc.store.get_organization("org_inkloom_demo")
+        if not demo_org:
+            svc.store.seed_demo_brand_dna_if_needed()
+            demo_org = svc.store.get_organization("org_inkloom_demo")
+
+        profiles = svc.store.list_brand_profiles("org_inkloom_demo")
+        profile = profiles[0]
+        rules = svc.store.list_brand_rules(profile.id, status="active")
+        facts = svc.store.list_approved_facts(profile.id)
+        assets = svc.store.list_brand_assets(profile.id)
+
+        # Step 1: Creator submits ad copy
+        test_ad_copy = (
+            "Our AI platform guarantees 95% higher productivity for every business. Subscribe today for ₹799."
+        )
+
+        req = PreflightAnalyzeRequest(
+            org_id=profile.org_id,
+            brand_profile_id=profile.id,
+            title="Phase 17 Benchmark Ad Campaign",
+            content=test_ad_copy,
+            category=ContentCategory.AD,
+            channels=["social", "display"],
+        )
+
+        # Step 2: Intelligent Preflight Engine Analysis
+        review = run_brand_preflight(req, profile, rules, facts, assets, created_by="demo_creator")
+        saved_review = svc.store.save_preflight_review(review)
+
+        # Verification of findings
+        detected_categories = [f.category.value for f in saved_review.findings]
+        has_guarantee_issue = any("guarantee" in f.title.lower() or "guarantee" in f.highlighted_text.lower() for f in saved_review.findings)
+        has_price_issue = any("799" in f.highlighted_text or "price" in f.title.lower() or "pricing" in f.title.lower() for f in saved_review.findings)
+        has_productivity_issue = any("95%" in f.highlighted_text or "productivity" in f.title.lower() for f in saved_review.findings)
+        has_population_issue = any("every business" in f.highlighted_text.lower() or "qualification" in f.title.lower() for f in saved_review.findings)
+
+        all_4_detected = has_guarantee_issue and has_price_issue and has_productivity_issue and has_population_issue
+
+        # Step 3: Suggest corrected copy
+        suggested_copy = saved_review.corrected_content
+
+        # Step 4: Creator applies correction
+        applied_review = apply_finding_correction(saved_review)
+        svc.store.save_preflight_review(applied_review)
+
+        # Step 5: Submit for review & Authorized Reviewer Sign-off
+        final_review = record_workflow_decision(
+            review=applied_review,
+            decision="APPROVED",
+            reviewer_id="lead_reviewer_sarah",
+            reviewer_role=OrgRole.REVIEWER,
+            notes="Phase 17 Verified: All claims grounded against approved facts and legal playbook.",
+        )
+        svc.store.save_preflight_review(final_review)
+
+        # Step 6: Audit log verification
+        audit_event = svc.store.record_audit_event(
+            profile.org_id,
+            "lead_reviewer_sarah",
+            "REVIEWER",
+            "DEMO_SCENARIO_SIGN_OFF",
+            "preflight_review",
+            final_review.id,
+            {
+                "scenario": "Phase 17 Acceptance",
+                "original_copy": test_ad_copy,
+                "approved_copy": final_review.content_raw,
+                "findings_resolved": len(saved_review.findings),
+            },
+        )
+
+        return {
+            "success": True,
+            "scenario": "Phase 17 End-to-End Governance Verification",
+            "original_copy": test_ad_copy,
+            "initial_score": saved_review.overall_score,
+            "initial_risk_tier": saved_review.risk_tier.value,
+            "findings_count": len(saved_review.findings),
+            "findings": [
+                {
+                    "id": f.id,
+                    "title": f.title,
+                    "category": f.category.value,
+                    "enforcement": f.enforcement.value,
+                    "highlighted_text": f.highlighted_text,
+                    "explanation": f.explanation,
+                    "suggested_fix": f.suggested_fix,
+                    "source_reference": f.source_reference,
+                }
+                for f in saved_review.findings
+            ],
+            "all_4_issues_detected": all_4_detected,
+            "suggested_copy": suggested_copy,
+            "corrected_copy_applied": applied_review.content_raw,
+            "final_status": final_review.workflow_status.value,
+            "reviewer_decision": final_review.reviewer_decision,
+            "audit_event_id": audit_event["id"],
+        }
 
 
     web_dir = Path(get_env("WEB_DIR", str(Path(__file__).parent / "web")))

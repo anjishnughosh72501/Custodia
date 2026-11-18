@@ -234,3 +234,87 @@ export const runBenchmark = async (): Promise<import("./types").BenchmarkResult>
     body: JSON.stringify({}),
   });
 };
+
+// =========================================================================
+// INKLOOM BRAND GOVERNANCE CLIENT APIS
+// =========================================================================
+
+export const getBrandProfiles = async (): Promise<import("./types").BrandProfile[]> => {
+  const res = await call<{ profiles: import("./types").BrandProfile[] }>("/api/brand/profiles");
+  return res.profiles || [];
+};
+
+export const getBrandProfile = async (
+  id: string
+): Promise<{ profile: import("./types").BrandProfile; rules_count: number; facts_count: number; assets_count: number }> => {
+  return call(`/api/brand/profiles/${id}`);
+};
+
+export const getBrandRules = async (profileId: string): Promise<import("./types").BrandRule[]> => {
+  const res = await call<{ rules: import("./types").BrandRule[] }>(`/api/brand/profiles/${profileId}/rules`);
+  return res.rules || [];
+};
+
+export const toggleBrandRule = async (ruleId: string): Promise<import("./types").BrandRule> => {
+  return call(`/api/brand/rules/${ruleId}/toggle`, { method: "POST" });
+};
+
+export const getApprovedFacts = async (profileId: string): Promise<import("./types").ApprovedFact[]> => {
+  const res = await call<{ facts: import("./types").ApprovedFact[] }>(`/api/brand/profiles/${profileId}/facts`);
+  return res.facts || [];
+};
+
+export const getBrandAssets = async (profileId: string): Promise<import("./types").BrandAsset[]> => {
+  const res = await call<{ assets: import("./types").BrandAsset[] }>(`/api/brand/profiles/${profileId}/assets`);
+  return res.assets || [];
+};
+
+export const runBrandPreflight = async (payload: {
+  content: string;
+  brand_profile_id?: string;
+  title?: string;
+  category?: string;
+  channels?: string[];
+}): Promise<import("./types").PreflightReview> => {
+  return call("/api/preflight/analyze", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+};
+
+export const applyPreflightCorrection = async (
+  reviewId: string,
+  findingId?: string
+): Promise<import("./types").PreflightReview> => {
+  return call(`/api/preflight/reviews/${reviewId}/apply-correction`, {
+    method: "POST",
+    body: JSON.stringify(findingId ? { finding_id: findingId } : {}),
+  });
+};
+
+export const getWorkflowQueue = async (): Promise<{
+  queue: import("./types").PreflightReview[];
+  total_pending: number;
+  total_count: number;
+}> => {
+  return call("/api/workflow/queue");
+};
+
+export const recordWorkflowDecision = async (
+  reviewId: string,
+  decision: "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED",
+  notes = ""
+): Promise<import("./types").PreflightReview> => {
+  return call(`/api/workflow/reviews/${reviewId}/decision`, {
+    method: "POST",
+    body: JSON.stringify({ decision, notes }),
+  });
+};
+
+export const getGovernanceAnalytics = async (): Promise<import("./types").GovernanceAnalytics> => {
+  return call("/api/analytics/overview");
+};
+
+export const runPhase17Demo = async (): Promise<import("./types").Phase17DemoResult> => {
+  return call("/api/demo/run-phase17-scenario", { method: "POST" });
+};

@@ -32,7 +32,9 @@ import { MultiSourceUploader } from "../components/MultiSourceUploader";
 import { ClaimComparisonView } from "../components/ClaimComparisonView";
 import { ReviewerWorkspaceModal } from "../components/ReviewerWorkspaceModal";
 import { BenchmarkDashboardModal } from "../components/BenchmarkDashboardModal";
-import { Layers, Award, History } from "lucide-react";
+import { Phase17DemoModal } from "../components/Phase17DemoModal";
+import { BrandGovernanceWorkspaceModal } from "../components/BrandGovernanceWorkspaceModal";
+import { Layers, Award, History, ShieldCheck, Sparkles } from "lucide-react";
 
 const FALLBACK_LIMITS: Health["limits"] = { claim_chars: 1000, evidence_chars: 20000 };
 
@@ -99,6 +101,8 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
   const [showMultiSource, setShowMultiSource] = useState(false);
   const [reviewerWorkspaceOpen, setReviewerWorkspaceOpen] = useState(false);
   const [benchmarkOpen, setBenchmarkOpen] = useState(false);
+  const [phase17Open, setPhase17Open] = useState(false);
+  const [brandGovOpen, setBrandGovOpen] = useState(false);
   const undoDraftRef = useRef<string | null>(null);
 
   const { addItem, removeItem } = useLocalList();
@@ -680,6 +684,24 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
                   <span>Evaluation Benchmark (116 Cases)</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setBrandGovOpen(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-700 hover:text-emerald-600 border border-slate-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Brand DNA &amp; Rules</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPhase17Open(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border border-cyan-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-600" />
+                  <span>Phase 17 Showcase</span>
+                </button>
+
                 {review && (
                   <button
                     type="button"
@@ -986,6 +1008,16 @@ export default function Checker({ exampleId, reviewId }: CheckerProps) {
         <BenchmarkDashboardModal
           isOpen={benchmarkOpen}
           onClose={() => setBenchmarkOpen(false)}
+        />
+
+        <Phase17DemoModal
+          isOpen={phase17Open}
+          onClose={() => setPhase17Open(false)}
+        />
+
+        <BrandGovernanceWorkspaceModal
+          isOpen={brandGovOpen}
+          onClose={() => setBrandGovOpen(false)}
         />
       </AppShell>
     </ErrorBoundary>

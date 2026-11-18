@@ -15,6 +15,26 @@ import threading
 import uuid
 from typing import Optional
 from .models import Review
+from app.brand.models import (
+    Organization,
+    BrandProfile,
+    BrandRule,
+    BrandRuleVersion,
+    ApprovedFact,
+    BrandAsset,
+    RuleStatus,
+    EnforcementLevel,
+    RuleCategory,
+    FactCategory,
+)
+from app.preflight.models import (
+    PreflightReview,
+    ReviewComment,
+    PreflightFinding,
+    WorkflowStatus,
+    RiskTier,
+    ContentCategory,
+)
 
 log = logging.getLogger("custodia")
 DEFAULT_RETENTION_DAYS = 30
@@ -236,11 +256,200 @@ class SqliteStore(BaseStore):
                 """
             )
             self._db.execute("CREATE INDEX IF NOT EXISTS idx_revisions_review_id ON revisions (review_id)")
+
+            # Brand Governance & Preflight Intelligence Tables
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS organizations (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    slug TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS memberships (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(org_id) REFERENCES organizations(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS brand_profiles (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    tagline TEXT,
+                    description TEXT,
+                    tone_guidelines_json TEXT,
+                    target_audience TEXT,
+                    primary_colors_json TEXT,
+                    font_families_json TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(org_id) REFERENCES organizations(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS brand_rules (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    brand_profile_id TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    enforcement TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    rule_text TEXT NOT NULL,
+                    explanation TEXT,
+                    forbidden_patterns_json TEXT,
+                    preferred_alternatives_json TEXT,
+                    required_disclaimers_json TEXT,
+                    source_document TEXT,
+                    source_location TEXT,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    version INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(brand_profile_id) REFERENCES brand_profiles(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS brand_rule_versions (
+                    id TEXT PRIMARY KEY,
+                    rule_id TEXT NOT NULL,
+                    version INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    rule_text TEXT NOT NULL,
+                    enforcement TEXT NOT NULL,
+                    change_summary TEXT,
+                    created_by TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(rule_id) REFERENCES brand_rules(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS approved_facts (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    brand_profile_id TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    entity_name TEXT NOT NULL,
+                    canonical_value TEXT NOT NULL,
+                    canonical_number REAL,
+                    canonical_unit TEXT,
+                    statement TEXT NOT NULL,
+                    proof_citation TEXT,
+                    valid_from TEXT,
+                    valid_to TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(brand_profile_id) REFERENCES brand_profiles(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS brand_assets (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    brand_profile_id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    asset_type TEXT NOT NULL,
+                    file_path TEXT,
+                    file_url TEXT,
+                    mime_type TEXT DEFAULT 'image/png',
+                    sha256 TEXT,
+                    hex_colors_json TEXT,
+                    dimensions_json TEXT,
+                    usage_guidelines TEXT,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(brand_profile_id) REFERENCES brand_profiles(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS preflight_reviews (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    brand_profile_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    content_raw TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    channels_json TEXT,
+                    workflow_status TEXT NOT NULL,
+                    overall_score INTEGER NOT NULL,
+                    risk_tier TEXT NOT NULL,
+                    findings_json TEXT NOT NULL,
+                    corrected_content TEXT,
+                    metadata_json TEXT,
+                    created_by TEXT,
+                    reviewer_id TEXT,
+                    reviewer_decision TEXT,
+                    reviewer_notes TEXT,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(brand_profile_id) REFERENCES brand_profiles(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS review_comments (
+                    id TEXT PRIMARY KEY,
+                    review_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    user_name TEXT NOT NULL,
+                    comment TEXT NOT NULL,
+                    created_at TIMESTAMP NOT NULL,
+                    FOREIGN KEY(review_id) REFERENCES preflight_reviews(id) ON DELETE CASCADE
+                )
+                """
+            )
+            self._db.execute(
+                """
+                CREATE TABLE IF NOT EXISTS audit_events (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    actor_role TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target_type TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    details_json TEXT,
+                    created_at TIMESTAMP NOT NULL
+                )
+                """
+            )
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_brand_profiles_org ON brand_profiles (org_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_brand_rules_profile ON brand_rules (brand_profile_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_approved_facts_profile ON approved_facts (brand_profile_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_brand_assets_profile ON brand_assets (brand_profile_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_preflight_reviews_org ON preflight_reviews (org_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_preflight_reviews_status ON preflight_reviews (workflow_status)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_review_comments_review ON review_comments (review_id)")
+            self._db.execute("CREATE INDEX IF NOT EXISTS idx_audit_events_org ON audit_events (org_id)")
             self._db.commit()
 
         # Purge expired on startup
         self.purge_expired()
         self.purge_expired_sessions()
+        self.seed_demo_brand_dna_if_needed()
 
     def _now(self) -> datetime.datetime:
         return datetime.datetime.now(datetime.timezone.utc)
@@ -616,6 +825,722 @@ class SqliteStore(BaseStore):
             reviewer_action=decision,
             notes=notes,
         )
+
+    # -------------------------------------------------------------
+    # Brand Governance, DNA Engine & Preflight Persistence Methods
+    # -------------------------------------------------------------
+
+    def seed_demo_brand_dna_if_needed(self) -> None:
+        """Seeds the official Inkloom AI Enterprise demo brand DNA if database is fresh."""
+        from app.brand.dna_engine import create_demo_brand_dna
+        with self._lock:
+            cur = self._db.cursor()
+            cur.execute("SELECT COUNT(*) FROM organizations WHERE slug = 'inkloom-ai-enterprise'")
+            count = cur.fetchone()[0]
+            if count > 0:
+                return
+
+            demo_org_id = "org_inkloom_demo"
+            now = self._now()
+            cur.execute(
+                "INSERT INTO organizations (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (demo_org_id, "Inkloom AI Enterprise", "inkloom-ai-enterprise", now, now),
+            )
+
+            profile, rules, facts, assets = create_demo_brand_dna(demo_org_id)
+
+            cur.execute(
+                """
+                INSERT INTO brand_profiles (id, org_id, name, tagline, description, tone_guidelines_json, target_audience, primary_colors_json, font_families_json, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    profile.id,
+                    profile.org_id,
+                    profile.name,
+                    profile.tagline,
+                    profile.description,
+                    json.dumps(profile.tone_guidelines),
+                    profile.target_audience,
+                    json.dumps(profile.primary_colors),
+                    json.dumps(profile.font_families),
+                    1 if profile.is_active else 0,
+                    profile.created_at,
+                    profile.updated_at,
+                ),
+            )
+
+            for r in rules:
+                cur.execute(
+                    """
+                    INSERT INTO brand_rules (id, org_id, brand_profile_id, category, enforcement, title, rule_text, explanation, forbidden_patterns_json, preferred_alternatives_json, required_disclaimers_json, source_document, source_location, status, version, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        r.id,
+                        r.org_id,
+                        r.brand_profile_id,
+                        r.category.value if hasattr(r.category, "value") else str(r.category),
+                        r.enforcement.value if hasattr(r.enforcement, "value") else str(r.enforcement),
+                        r.title,
+                        r.rule_text,
+                        r.explanation,
+                        json.dumps(r.forbidden_patterns),
+                        json.dumps(r.preferred_alternatives),
+                        json.dumps(r.required_disclaimers),
+                        r.source_document,
+                        r.source_location,
+                        r.status.value if hasattr(r.status, "value") else str(r.status),
+                        r.version,
+                        r.created_at,
+                        r.updated_at,
+                    ),
+                )
+
+            for f in facts:
+                cur.execute(
+                    """
+                    INSERT INTO approved_facts (id, org_id, brand_profile_id, category, entity_name, canonical_value, canonical_number, canonical_unit, statement, proof_citation, valid_from, valid_to, is_active, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        f.id,
+                        f.org_id,
+                        f.brand_profile_id,
+                        f.category.value if hasattr(f.category, "value") else str(f.category),
+                        f.entity_name,
+                        f.canonical_value,
+                        f.canonical_number,
+                        f.canonical_unit,
+                        f.statement,
+                        f.proof_citation,
+                        f.valid_from,
+                        f.valid_to,
+                        1 if f.is_active else 0,
+                        f.created_at,
+                    ),
+                )
+
+            for a in assets:
+                cur.execute(
+                    """
+                    INSERT INTO brand_assets (id, org_id, brand_profile_id, name, asset_type, file_path, file_url, mime_type, sha256, hex_colors_json, dimensions_json, usage_guidelines, is_active, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        a.id,
+                        a.org_id,
+                        a.brand_profile_id,
+                        a.name,
+                        a.asset_type.value if hasattr(a.asset_type, "value") else str(a.asset_type),
+                        a.file_path,
+                        a.file_url,
+                        a.mime_type,
+                        a.sha256,
+                        json.dumps(a.hex_colors),
+                        json.dumps(a.dimensions),
+                        a.usage_guidelines,
+                        1 if a.is_active else 0,
+                        a.created_at,
+                    ),
+                )
+
+            self._db.commit()
+            log.info("Initialized demo organization and brand DNA (%d rules, %d facts, %d assets)", len(rules), len(facts), len(assets))
+
+    def create_organization(self, org: Organization) -> Organization:
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO organizations (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (org.id, org.name, org.slug, org.created_at, org.updated_at),
+            )
+            self._db.commit()
+        return org
+
+    def get_organization(self, org_id: str) -> Optional[Organization]:
+        with self._lock:
+            row = self._db.execute("SELECT id, name, slug, created_at, updated_at FROM organizations WHERE id = ?", (org_id,)).fetchone()
+            if not row:
+                return None
+            return Organization(id=row[0], name=row[1], slug=row[2], created_at=row[3], updated_at=row[4])
+
+    def list_organizations(self) -> list[Organization]:
+        with self._lock:
+            rows = self._db.execute("SELECT id, name, slug, created_at, updated_at FROM organizations ORDER BY created_at ASC").fetchall()
+            return [Organization(id=r[0], name=r[1], slug=r[2], created_at=r[3], updated_at=r[4]) for r in rows]
+
+    def add_membership(self, org_id: str, user_id: str, role: str) -> dict:
+        m_id = f"mem_{uuid.uuid4().hex[:10]}"
+        now = self._now()
+        with self._lock:
+            self._db.execute(
+                "INSERT INTO memberships (id, org_id, user_id, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                (m_id, org_id, user_id, role, now),
+            )
+            self._db.commit()
+        return {"id": m_id, "org_id": org_id, "user_id": user_id, "role": role, "created_at": str(now)}
+
+    def get_user_role_in_org(self, user_id: str, org_id: str) -> Optional[str]:
+        with self._lock:
+            row = self._db.execute(
+                "SELECT role FROM memberships WHERE user_id = ? AND org_id = ?",
+                (user_id, org_id),
+            ).fetchone()
+            return row[0] if row else None
+
+    def save_brand_profile(self, profile: BrandProfile) -> BrandProfile:
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT OR REPLACE INTO brand_profiles (id, org_id, name, tagline, description, tone_guidelines_json, target_audience, primary_colors_json, font_families_json, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    profile.id,
+                    profile.org_id,
+                    profile.name,
+                    profile.tagline,
+                    profile.description,
+                    json.dumps(profile.tone_guidelines),
+                    profile.target_audience,
+                    json.dumps(profile.primary_colors),
+                    json.dumps(profile.font_families),
+                    1 if profile.is_active else 0,
+                    profile.created_at,
+                    profile.updated_at,
+                ),
+            )
+            self._db.commit()
+        return profile
+
+    def get_brand_profile(self, profile_id: str) -> Optional[BrandProfile]:
+        with self._lock:
+            row = self._db.execute(
+                """
+                SELECT id, org_id, name, tagline, description, tone_guidelines_json, target_audience, primary_colors_json, font_families_json, is_active, created_at, updated_at
+                FROM brand_profiles WHERE id = ?
+                """,
+                (profile_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return BrandProfile(
+                id=row[0],
+                org_id=row[1],
+                name=row[2],
+                tagline=row[3],
+                description=row[4],
+                tone_guidelines=json.loads(row[5] or "[]"),
+                target_audience=row[6],
+                primary_colors=json.loads(row[7] or "[]"),
+                font_families=json.loads(row[8] or "[]"),
+                is_active=bool(row[9]),
+                created_at=row[10],
+                updated_at=row[11],
+            )
+
+    def list_brand_profiles(self, org_id: Optional[str] = None) -> list[BrandProfile]:
+        with self._lock:
+            if org_id:
+                rows = self._db.execute(
+                    """
+                    SELECT id, org_id, name, tagline, description, tone_guidelines_json, target_audience, primary_colors_json, font_families_json, is_active, created_at, updated_at
+                    FROM brand_profiles WHERE org_id = ? ORDER BY created_at DESC
+                    """,
+                    (org_id,),
+                ).fetchall()
+            else:
+                rows = self._db.execute(
+                    """
+                    SELECT id, org_id, name, tagline, description, tone_guidelines_json, target_audience, primary_colors_json, font_families_json, is_active, created_at, updated_at
+                    FROM brand_profiles ORDER BY created_at DESC
+                    """
+                ).fetchall()
+            return [
+                BrandProfile(
+                    id=r[0],
+                    org_id=r[1],
+                    name=r[2],
+                    tagline=r[3],
+                    description=r[4],
+                    tone_guidelines=json.loads(r[5] or "[]"),
+                    target_audience=r[6],
+                    primary_colors=json.loads(r[7] or "[]"),
+                    font_families=json.loads(r[8] or "[]"),
+                    is_active=bool(r[9]),
+                    created_at=r[10],
+                    updated_at=r[11],
+                )
+                for r in rows
+            ]
+
+    def save_brand_rule(self, rule: BrandRule) -> BrandRule:
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT OR REPLACE INTO brand_rules (id, org_id, brand_profile_id, category, enforcement, title, rule_text, explanation, forbidden_patterns_json, preferred_alternatives_json, required_disclaimers_json, source_document, source_location, status, version, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    rule.id,
+                    rule.org_id,
+                    rule.brand_profile_id,
+                    rule.category.value if hasattr(rule.category, "value") else str(rule.category),
+                    rule.enforcement.value if hasattr(rule.enforcement, "value") else str(rule.enforcement),
+                    rule.title,
+                    rule.rule_text,
+                    rule.explanation,
+                    json.dumps(rule.forbidden_patterns),
+                    json.dumps(rule.preferred_alternatives),
+                    json.dumps(rule.required_disclaimers),
+                    rule.source_document,
+                    rule.source_location,
+                    rule.status.value if hasattr(rule.status, "value") else str(rule.status),
+                    rule.version,
+                    rule.created_at,
+                    rule.updated_at,
+                ),
+            )
+            self._db.commit()
+        return rule
+
+    def get_brand_rule(self, rule_id: str) -> Optional[BrandRule]:
+        with self._lock:
+            row = self._db.execute(
+                """
+                SELECT id, org_id, brand_profile_id, category, enforcement, title, rule_text, explanation, forbidden_patterns_json, preferred_alternatives_json, required_disclaimers_json, source_document, source_location, status, version, created_at, updated_at
+                FROM brand_rules WHERE id = ?
+                """,
+                (rule_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return BrandRule(
+                id=row[0],
+                org_id=row[1],
+                brand_profile_id=row[2],
+                category=RuleCategory(row[3]),
+                enforcement=EnforcementLevel(row[4]),
+                title=row[5],
+                rule_text=row[6],
+                explanation=row[7],
+                forbidden_patterns=json.loads(row[8] or "[]"),
+                preferred_alternatives=json.loads(row[9] or "[]"),
+                required_disclaimers=json.loads(row[10] or "[]"),
+                source_document=row[11],
+                source_location=row[12],
+                status=RuleStatus(row[13]),
+                version=row[14],
+                created_at=row[15],
+                updated_at=row[16],
+            )
+
+    def list_brand_rules(self, brand_profile_id: Optional[str] = None, status: Optional[str] = None) -> list[BrandRule]:
+        with self._lock:
+            query = "SELECT id, org_id, brand_profile_id, category, enforcement, title, rule_text, explanation, forbidden_patterns_json, preferred_alternatives_json, required_disclaimers_json, source_document, source_location, status, version, created_at, updated_at FROM brand_rules WHERE 1=1"
+            params: list = []
+            if brand_profile_id:
+                query += " AND brand_profile_id = ?"
+                params.append(brand_profile_id)
+            if status:
+                query += " AND UPPER(status) = UPPER(?)"
+                params.append(status)
+            query += " ORDER BY created_at DESC"
+            rows = self._db.execute(query, tuple(params)).fetchall()
+            return [
+                BrandRule(
+                    id=r[0],
+                    org_id=r[1],
+                    brand_profile_id=r[2],
+                    category=RuleCategory(r[3]),
+                    enforcement=EnforcementLevel(r[4]),
+                    title=r[5],
+                    rule_text=r[6],
+                    explanation=r[7],
+                    forbidden_patterns=json.loads(r[8] or "[]"),
+                    preferred_alternatives=json.loads(r[9] or "[]"),
+                    required_disclaimers=json.loads(r[10] or "[]"),
+                    source_document=r[11],
+                    source_location=r[12],
+                    status=RuleStatus(r[13]),
+                    version=r[14],
+                    created_at=r[15],
+                    updated_at=r[16],
+                )
+                for r in rows
+            ]
+
+    def toggle_brand_rule(self, rule_id: str, status: Optional[RuleStatus] = None) -> Optional[BrandRule]:
+        rule = self.get_brand_rule(rule_id)
+        if not rule:
+            return None
+        new_status = status if status is not None else (RuleStatus.INACTIVE if rule.status == RuleStatus.ACTIVE else RuleStatus.ACTIVE)
+        rule.status = new_status
+        rule.updated_at = self._now()
+        return self.save_brand_rule(rule)
+
+    def update_brand_rule(self, rule_id: str, updates: dict, actor_id: str = "system") -> Optional[BrandRule]:
+        rule = self.get_brand_rule(rule_id)
+        if not rule:
+            return None
+        # Record version history before updating
+        v_id = f"v_{uuid.uuid4().hex[:10]}"
+        now = self._now()
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT INTO brand_rule_versions (id, rule_id, version, title, rule_text, enforcement, change_summary, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    v_id,
+                    rule.id,
+                    rule.version,
+                    rule.title,
+                    rule.rule_text,
+                    rule.enforcement.value if hasattr(rule.enforcement, "value") else str(rule.enforcement),
+                    updates.get("change_summary", "Rule modification"),
+                    actor_id,
+                    now,
+                ),
+            )
+            self._db.commit()
+
+        rule.version += 1
+        rule.updated_at = now
+        for k, v in updates.items():
+            if hasattr(rule, k) and k not in ("id", "org_id", "brand_profile_id", "version", "created_at"):
+                setattr(rule, k, v)
+        return self.save_brand_rule(rule)
+
+    def save_approved_fact(self, fact: ApprovedFact) -> ApprovedFact:
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT OR REPLACE INTO approved_facts (id, org_id, brand_profile_id, category, entity_name, canonical_value, canonical_number, canonical_unit, statement, proof_citation, valid_from, valid_to, is_active, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fact.id,
+                    fact.org_id,
+                    fact.brand_profile_id,
+                    fact.category.value if hasattr(fact.category, "value") else str(fact.category),
+                    fact.entity_name,
+                    fact.canonical_value,
+                    fact.canonical_number,
+                    fact.canonical_unit,
+                    fact.statement,
+                    fact.proof_citation,
+                    fact.valid_from,
+                    fact.valid_to,
+                    1 if fact.is_active else 0,
+                    fact.created_at,
+                ),
+            )
+            self._db.commit()
+        return fact
+
+    def list_approved_facts(self, brand_profile_id: Optional[str] = None) -> list[ApprovedFact]:
+        with self._lock:
+            query = "SELECT id, org_id, brand_profile_id, category, entity_name, canonical_value, canonical_number, canonical_unit, statement, proof_citation, valid_from, valid_to, is_active, created_at FROM approved_facts WHERE 1=1"
+            params: list = []
+            if brand_profile_id:
+                query += " AND brand_profile_id = ?"
+                params.append(brand_profile_id)
+            query += " ORDER BY created_at DESC"
+            rows = self._db.execute(query, tuple(params)).fetchall()
+            return [
+                ApprovedFact(
+                    id=r[0],
+                    org_id=r[1],
+                    brand_profile_id=r[2],
+                    category=FactCategory(r[3]),
+                    entity_name=r[4],
+                    canonical_value=r[5],
+                    canonical_number=r[6],
+                    canonical_unit=r[7],
+                    statement=r[8],
+                    proof_citation=r[9] or "",
+                    valid_from=r[10],
+                    valid_to=r[11],
+                    is_active=bool(r[12]),
+                    created_at=r[13],
+                )
+                for r in rows
+            ]
+
+    def save_brand_asset(self, asset: BrandAsset) -> BrandAsset:
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT OR REPLACE INTO brand_assets (id, org_id, brand_profile_id, name, asset_type, file_path, file_url, mime_type, sha256, hex_colors_json, dimensions_json, usage_guidelines, is_active, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    asset.id,
+                    asset.org_id,
+                    asset.brand_profile_id,
+                    asset.name,
+                    asset.asset_type.value if hasattr(asset.asset_type, "value") else str(asset.asset_type),
+                    asset.file_path,
+                    asset.file_url,
+                    asset.mime_type,
+                    asset.sha256,
+                    json.dumps(asset.hex_colors),
+                    json.dumps(asset.dimensions),
+                    asset.usage_guidelines,
+                    1 if asset.is_active else 0,
+                    asset.created_at,
+                ),
+            )
+            self._db.commit()
+        return asset
+
+    def list_brand_assets(self, brand_profile_id: Optional[str] = None) -> list[BrandAsset]:
+        with self._lock:
+            query = "SELECT id, org_id, brand_profile_id, name, asset_type, file_path, file_url, mime_type, sha256, hex_colors_json, dimensions_json, usage_guidelines, is_active, created_at FROM brand_assets WHERE 1=1"
+            params: list = []
+            if brand_profile_id:
+                query += " AND brand_profile_id = ?"
+                params.append(brand_profile_id)
+            query += " ORDER BY created_at DESC"
+            rows = self._db.execute(query, tuple(params)).fetchall()
+            from app.brand.models import AssetType
+            return [
+                BrandAsset(
+                    id=r[0],
+                    org_id=r[1],
+                    brand_profile_id=r[2],
+                    name=r[3],
+                    asset_type=AssetType(r[4]),
+                    file_path=r[5],
+                    file_url=r[6],
+                    mime_type=r[7] or "image/png",
+                    sha256=r[8] or "",
+                    hex_colors=json.loads(r[9] or "[]"),
+                    dimensions=json.loads(r[10] or "{}"),
+                    usage_guidelines=r[11] or "",
+                    is_active=bool(r[12]),
+                    created_at=r[13],
+                )
+                for r in rows
+            ]
+
+    def save_preflight_review(self, review: PreflightReview) -> PreflightReview:
+        findings_data = [f.model_dump() if hasattr(f, "model_dump") else f for f in review.findings]
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT OR REPLACE INTO preflight_reviews (id, org_id, brand_profile_id, title, content_raw, category, channels_json, workflow_status, overall_score, risk_tier, findings_json, corrected_content, metadata_json, created_by, reviewer_id, reviewer_decision, reviewer_notes, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    review.id,
+                    review.org_id,
+                    review.brand_profile_id,
+                    review.title,
+                    review.content_raw,
+                    review.category.value if hasattr(review.category, "value") else str(review.category),
+                    json.dumps(review.channels),
+                    review.workflow_status.value if hasattr(review.workflow_status, "value") else str(review.workflow_status),
+                    review.overall_score,
+                    review.risk_tier.value if hasattr(review.risk_tier, "value") else str(review.risk_tier),
+                    json.dumps(findings_data),
+                    review.corrected_content,
+                    json.dumps(review.metadata),
+                    review.created_by,
+                    review.reviewer_id,
+                    review.reviewer_decision,
+                    review.reviewer_notes,
+                    review.created_at,
+                    review.updated_at,
+                ),
+            )
+            self._db.commit()
+        return review
+
+    def get_preflight_review(self, review_id: str) -> Optional[PreflightReview]:
+        with self._lock:
+            row = self._db.execute(
+                """
+                SELECT id, org_id, brand_profile_id, title, content_raw, category, channels_json, workflow_status, overall_score, risk_tier, findings_json, corrected_content, metadata_json, created_by, reviewer_id, reviewer_decision, reviewer_notes, created_at, updated_at
+                FROM preflight_reviews WHERE id = ?
+                """,
+                (review_id,),
+            ).fetchone()
+            if not row:
+                return None
+            findings_raw = json.loads(row[10] or "[]")
+            findings = [PreflightFinding(**f) for f in findings_raw]
+            return PreflightReview(
+                id=row[0],
+                org_id=row[1],
+                brand_profile_id=row[2],
+                title=row[3],
+                content_raw=row[4],
+                category=ContentCategory(row[5]),
+                channels=json.loads(row[6] or "[]"),
+                workflow_status=WorkflowStatus(row[7]),
+                overall_score=row[8],
+                risk_tier=RiskTier(row[9]),
+                findings=findings,
+                corrected_content=row[11],
+                metadata=json.loads(row[12] or "{}"),
+                created_by=row[13],
+                reviewer_id=row[14],
+                reviewer_decision=row[15],
+                reviewer_notes=row[16],
+                created_at=row[17],
+                updated_at=row[18],
+            )
+
+    def list_preflight_reviews(self, org_id: Optional[str] = None, status: Optional[str] = None) -> list[PreflightReview]:
+        with self._lock:
+            query = "SELECT id, org_id, brand_profile_id, title, content_raw, category, channels_json, workflow_status, overall_score, risk_tier, findings_json, corrected_content, metadata_json, created_by, reviewer_id, reviewer_decision, reviewer_notes, created_at, updated_at FROM preflight_reviews WHERE 1=1"
+            params: list = []
+            if org_id:
+                query += " AND org_id = ?"
+                params.append(org_id)
+            if status:
+                query += " AND workflow_status = ?"
+                params.append(status)
+            query += " ORDER BY created_at DESC"
+            rows = self._db.execute(query, tuple(params)).fetchall()
+            reviews: list[PreflightReview] = []
+            for r in rows:
+                findings_raw = json.loads(r[10] or "[]")
+                findings = [PreflightFinding(**f) for f in findings_raw]
+                reviews.append(
+                    PreflightReview(
+                        id=r[0],
+                        org_id=r[1],
+                        brand_profile_id=r[2],
+                        title=r[3],
+                        content_raw=r[4],
+                        category=ContentCategory(r[5]),
+                        channels=json.loads(r[6] or "[]"),
+                        workflow_status=WorkflowStatus(r[7]),
+                        overall_score=r[8],
+                        risk_tier=RiskTier(r[9]),
+                        findings=findings,
+                        corrected_content=r[11],
+                        metadata=json.loads(r[12] or "{}"),
+                        created_by=r[13],
+                        reviewer_id=r[14],
+                        reviewer_decision=r[15],
+                        reviewer_notes=r[16],
+                        created_at=r[17],
+                        updated_at=r[18],
+                    )
+                )
+            return reviews
+
+    def save_review_comment(self, comment: ReviewComment) -> ReviewComment:
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT INTO review_comments (id, review_id, user_id, user_name, comment, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    comment.id,
+                    comment.review_id,
+                    comment.user_id,
+                    comment.user_name,
+                    comment.comment,
+                    comment.created_at,
+                ),
+            )
+            self._db.commit()
+        return comment
+
+    def list_review_comments(self, review_id: str) -> list[ReviewComment]:
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT id, review_id, user_id, user_name, comment, created_at FROM review_comments WHERE review_id = ? ORDER BY created_at ASC",
+                (review_id,),
+            ).fetchall()
+            return [
+                ReviewComment(
+                    id=r[0],
+                    review_id=r[1],
+                    user_id=r[2],
+                    user_name=r[3],
+                    comment=r[4],
+                    created_at=r[5],
+                )
+                for r in rows
+            ]
+
+    def record_audit_event(
+        self,
+        org_id: str,
+        actor_id: str,
+        actor_role: str,
+        action: str,
+        target_type: str,
+        target_id: str,
+        details: Optional[dict] = None,
+    ) -> dict:
+        evt_id = f"evt_{uuid.uuid4().hex[:12]}"
+        now = self._now()
+        with self._lock:
+            self._db.execute(
+                """
+                INSERT INTO audit_events (id, org_id, actor_id, actor_role, action, target_type, target_id, details_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    evt_id,
+                    org_id,
+                    actor_id,
+                    actor_role,
+                    action,
+                    target_type,
+                    target_id,
+                    json.dumps(details or {}),
+                    now,
+                ),
+            )
+            self._db.commit()
+        return {
+            "id": evt_id,
+            "org_id": org_id,
+            "actor_id": actor_id,
+            "actor_role": actor_role,
+            "action": action,
+            "target_type": target_type,
+            "target_id": target_id,
+            "details": details or {},
+            "created_at": str(now),
+        }
+
+    def list_audit_events(self, org_id: Optional[str] = None, limit: int = 100) -> list[dict]:
+        with self._lock:
+            if org_id:
+                rows = self._db.execute(
+                    "SELECT id, org_id, actor_id, actor_role, action, target_type, target_id, details_json, created_at FROM audit_events WHERE org_id = ? ORDER BY created_at DESC LIMIT ?",
+                    (org_id, limit),
+                ).fetchall()
+            else:
+                rows = self._db.execute(
+                    "SELECT id, org_id, actor_id, actor_role, action, target_type, target_id, details_json, created_at FROM audit_events ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
+            return [
+                {
+                    "id": r[0],
+                    "org_id": r[1],
+                    "actor_id": r[2],
+                    "actor_role": r[3],
+                    "action": r[4],
+                    "target_type": r[5],
+                    "target_id": r[6],
+                    "details": json.loads(r[7] or "{}"),
+                    "created_at": str(r[8]),
+                }
+                for r in rows
+            ]
 
 
 class PostgresStore(BaseStore):

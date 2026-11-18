@@ -233,3 +233,155 @@ export interface Example {
   expected: VerdictStatus;
   candidate?: string;
 }
+
+// =========================================================================
+// INKLOOM BRAND GOVERNANCE TYPES
+// =========================================================================
+
+export interface BrandProfile {
+  id: string;
+  org_id: string;
+  name: string;
+  tagline: string;
+  description: string;
+  tone_guidelines: string[];
+  target_audience: string;
+  primary_colors: string[];
+  font_families: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BrandRule {
+  id: string;
+  org_id: string;
+  brand_profile_id: string;
+  category: "TERMINOLOGY" | "MESSAGING" | "FACTS" | "CLAIMS" | "LEGAL" | "VISUAL" | "ACCESSIBILITY";
+  enforcement: "STRICT" | "WARNING" | "ADVISORY";
+  title: string;
+  rule_text: string;
+  explanation: string;
+  forbidden_patterns: string[];
+  preferred_alternatives: string[];
+  required_disclaimers: string[];
+  source_document?: string;
+  source_location?: string;
+  status: "ACTIVE" | "INACTIVE" | "EXTRACTED" | "DRAFT";
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApprovedFact {
+  id: string;
+  org_id: string;
+  brand_profile_id: string;
+  category: "PRICING" | "METRIC" | "PRODUCT" | "DISCLAIMER" | "COHORT" | "DATES";
+  entity_name: string;
+  canonical_value: string;
+  canonical_number?: number;
+  canonical_unit?: string;
+  statement: string;
+  proof_citation: string;
+  valid_from?: string;
+  valid_to?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface BrandAsset {
+  id: string;
+  org_id: string;
+  brand_profile_id: string;
+  name: string;
+  asset_type: "LOGO" | "IMAGE" | "PALETTE" | "FONT" | "TEMPLATE";
+  file_path?: string;
+  file_url?: string;
+  mime_type: string;
+  sha256: string;
+  hex_colors: string[];
+  dimensions: Record<string, number>;
+  usage_guidelines: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface PreflightFinding {
+  id: string;
+  title: string;
+  category: "TERMINOLOGY" | "MESSAGING" | "FACTS" | "CLAIMS" | "LEGAL" | "VISUAL" | "ACCESSIBILITY";
+  enforcement: "STRICT" | "WARNING" | "ADVISORY";
+  confidence: number;
+  highlighted_text: string;
+  affected_content?: string;
+  span_start?: number;
+  span_end?: number;
+  explanation: string;
+  rule_id?: string;
+  rule_title?: string;
+  source_reference?: string;
+  suggested_fix?: string;
+  suggested_correction?: string;
+  status: "OPEN" | "ACCEPTED" | "DISMISSED" | "EDITED";
+}
+
+export interface PreflightReview {
+  id: string;
+  org_id: string;
+  user_id: string;
+  brand_profile_id: string;
+  title: string;
+  content_raw: string;
+  original_text?: string;
+  current_text?: string;
+  category: "AD" | "ADVERTISEMENT" | "SOCIAL_MEDIA" | "LANDING_PAGE" | "PRESS_RELEASE" | "PRODUCT_COPY" | "EMAIL" | "PACKAGING";
+  channels: string[];
+  workflow_status: "DRAFT" | "PROCESSING" | "NEEDS_REVISION" | "REVISION_REQUESTED" | "PENDING_REVIEW" | "FLAGGED_FOR_LEGAL" | "APPROVED" | "APPROVED_WITH_CONDITIONS" | "REJECTED";
+  overall_score: number;
+  governance_score?: number;
+  risk_tier: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  findings: PreflightFinding[];
+  corrected_content?: string;
+  suggested_rewrite?: string;
+  metadata?: Record<string, any>;
+  created_by?: string;
+  reviewer_id?: string;
+  reviewer_decision?: string;
+  reviewer_notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GovernanceAnalytics {
+  total_reviews: number;
+  approved_count: number;
+  approved_with_conditions_count: number;
+  rejected_count: number;
+  needs_revision_count: number;
+  pending_review_count: number;
+  approval_rate_pct: number;
+  average_governance_score: number;
+  overall_compliance_score: number;
+  common_violations_by_category: Record<string, number>;
+  category_breakdown: Record<string, number>;
+  top_violated_rules: Array<{ rule_id: string; rule_title: string; count: number }>;
+  monthly_trend: Array<{ period: string; score: number; reviews: number }>;
+  is_live_data: boolean;
+}
+
+export interface Phase17DemoResult {
+  success: boolean;
+  scenario: string;
+  original_copy: string;
+  initial_score: number;
+  initial_risk_tier: string;
+  findings_count: number;
+  findings: PreflightFinding[];
+  all_4_issues_detected: boolean;
+  suggested_copy: string;
+  corrected_copy_applied: string;
+  final_status: string;
+  reviewer_decision: string;
+  audit_event_id: string;
+}

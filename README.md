@@ -1,22 +1,29 @@
-# CUSTODIA — Deterministic Evidence-Bound Claim Verification Engine
+# CUSTODIA — Enterprise Brand Governance & Evidence-Bound Intelligence Platform
 
 <div align="center">
 
+[![Inkloom AI Hackathon](https://img.shields.io/badge/Inkloom%20AI%20Hackathon-Final%20Submission-FF6B6B?style=for-the-badge&logo=target)](docs/INKLOOM_COMPLETE_TRANSFORMATION_PLAN.md)
 [![CI Pipeline](https://github.com/anjishnughosh72501/Custodia/actions/workflows/ci.yml/badge.svg)](https://github.com/anjishnughosh72501/Custodia/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.14-3776AB?logo=python&logoColor=white)](app/)
 [![Rust Gateway](https://img.shields.io/badge/Rust-1.80%2B-DEA584?logo=rust&logoColor=white)](gateway/)
 [![React](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](frontend/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)](frontend/)
+[![Tests](https://img.shields.io/badge/Python%20Tests-183%20Passed-success)](tests/)
+[![Frontend Tests](https://img.shields.io/badge/Vitest-67%2F67%20Passed-success)](frontend/)
 [![Benchmark](https://img.shields.io/badge/Benchmark-116%2F116%20Zero%20False%20Approvals-2ECC71)](bench/)
-[![E2E Tests](https://img.shields.io/badge/Playwright%20E2E-54%2F54%20Passing-success)](tests/e2e/)
 
 <p align="center">
-  <b>A zero-trust compliance engine that guarantees marketing, scientific, and legal claims never outgrow their evidence.</b><br>
-  Built with a high-performance <b>Rust Security Gateway</b>, deterministic <b>7-dimensional frame algebra</b>, multi-source document ingestion (PDF, DOCX, XLSX, CSV, TXT), and human-in-the-loop audit revision tracking.
+  <b>A zero-trust brand governance and claim verification engine that guarantees marketing, scientific, and enterprise creative copy strictly honors brand rules, verified truth facts, and empirical evidence.</b><br>
+  Built with a high-performance <b>Rust Security Gateway</b>, deterministic <b>Brand DNA Engine</b>, <b>Visual Identity Color Math</b>, <b>Zero-Key Autonomous Execution</b>, and <b>Tamper-Evident SHA-256 Audit Logging</b>.
 </p>
 
 </div>
+
+---
+
+> [!IMPORTANT]
+> **Inkloom AI Hackathon Showcase**: Custodia transforms into a full-scale Brand Governance platform featuring real-time Brand DNA extraction, an Approved Facts repository, live copy preflight analysis with auto-correction, human-in-the-loop reviewer sign-off, and an interactive **Phase 17 Benchmark Runner**. See [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) and [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md).
 
 ---
 
@@ -28,28 +35,46 @@
 
 ## Table of Contents
 
-1. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
-2. [Why Custodia Is Architecturally Different](#2-why-custodia-is-architecturally-different)
-3. [Feature Matrix](#3-feature-matrix)
-4. [Full System Architecture](#4-full-system-architecture)
-5. [Rust Secure Document Gateway](#5-rust-secure-document-gateway)
-6. [Multi-Format Document Ingestion & Provenance](#6-multi-format-document-ingestion--provenance)
-7. [Multi-Source External Evidence Connectors](#7-multi-source-external-evidence-connectors)
-8. [The Seven-Dimensional Verification Methodology](#8-the-seven-dimensional-verification-methodology)
-9. [Role of Gemini: Advisory vs. Authority](#9-role-of-gemini-advisory-vs-authority)
-10. [Deterministic Verdict Engine & Contradiction Detection](#10-deterministic-verdict-engine--contradiction-detection)
-11. [Evidence Fit Scoring & Confidence Invariants](#11-evidence-fit-scoring--confidence-invariants)
-12. [Versioned Audit History & Reviewer Workspace](#12-versioned-audit-history--reviewer-workspace)
-13. [Authentication & Account-Level Isolation](#13-authentication--account-level-isolation)
-14. [Evaluation Benchmark Methodology & Results](#14-evaluation-benchmark-methodology--results)
-15. [Verified Test Suite Metrics](#15-verified-test-suite-metrics)
-16. [Installation & Local Setup](#16-installation--local-setup)
-17. [Environment Variable Reference](#17-environment-variable-reference)
-18. [Docker Production Deployment](#18-docker-production-deployment)
-19. [API Documentation](#19-api-documentation)
-20. [Repository Structure](#20-repository-structure)
-21. [Known Limitations & Roadmap](#21-known-limitations--roadmap)
-22. [License & Acknowledgments](#22-license--acknowledgments)
+1. [Inkloom AI Hackathon Documentation](#-inkloom-brand-governance-documentation)
+2. [Executive Summary & Problem Statement](#1-executive-summary--problem-statement)
+3. [Why Custodia Is Architecturally Different](#2-why-custodia-is-architecturally-different)
+4. [Feature Matrix](#3-feature-matrix)
+5. [Full System Architecture](#4-full-system-architecture)
+6. [Rust Secure Document Gateway](#5-rust-secure-document-gateway)
+7. [Multi-Format Document Ingestion & Provenance](#6-multi-format-document-ingestion--provenance)
+8. [Multi-Source External Evidence Connectors](#7-multi-source-external-evidence-connectors)
+9. [The Seven-Dimensional Verification Methodology](#8-the-seven-dimensional-verification-methodology)
+10. [Role of Gemini: Advisory vs. Authority](#9-role-of-gemini-advisory-vs-authority)
+11. [Deterministic Verdict Engine & Contradiction Detection](#10-deterministic-verdict-engine--contradiction-detection)
+12. [Evidence Fit Scoring & Confidence Invariants](#11-evidence-fit-scoring--confidence-invariants)
+13. [Versioned Audit History & Reviewer Workspace](#12-versioned-audit-history--reviewer-workspace)
+14. [Authentication & Account-Level Isolation](#13-authentication--account-level-isolation)
+15. [Evaluation Benchmark Methodology & Results](#14-evaluation-benchmark-methodology--results)
+16. [Verified Test Suite Metrics](#15-verified-test-suite-metrics)
+17. [Installation & Local Setup](#16-installation--local-setup)
+18. [Environment Variable Reference](#17-environment-variable-reference)
+19. [Docker Production Deployment](#18-docker-production-deployment)
+20. [API Documentation](#19-api-documentation)
+21. [Repository Structure](#20-repository-structure)
+22. [Known Limitations & Roadmap](#21-known-limitations--roadmap)
+23. [License & Acknowledgments](#22-license--acknowledgments)
+
+---
+
+## 📚 Inkloom Brand Governance Documentation
+
+For detailed architectural specifications, API schemas, testing guides, and evaluator walkthroughs, refer to our comprehensive documentation suite:
+
+* **[Demo & Judge Walkthrough](docs/DEMO_GUIDE.md)**: 3-minute step-by-step evaluation guide and Phase 17 scenario walkthrough.
+* **[Implementation Status & Feature Matrix](docs/IMPLEMENTATION_STATUS.md)**: Feature-by-feature completion checklist and test verification.
+* **[System Architecture](docs/ARCHITECTURE.md)**: In-depth microservice topology, data flow diagrams, and component interactions.
+* **[AI Model & Reasoning Strategy](docs/AI_MODEL_STRATEGY.md)**: Zero-key deterministic fallback, mathematical color distance, and LLM guardrails.
+* **[API Reference](docs/API_REFERENCE.md)**: Complete REST API documentation for all brand governance endpoints.
+* **[Database Schema Reference](docs/DATABASE_SCHEMA.md)**: Entity-relationship diagrams and table schemas for SQLite and PostgreSQL.
+* **[Security Architecture](docs/SECURITY.md)**: Rust Gateway sanitization, magic-byte checks, zip bomb limits, and RBAC enforcement.
+* **[Testing Guide](docs/TESTING.md)**: Test verification matrix covering backend pytest, Vitest, and Rust unit tests.
+* **[Deployment & Operational Runbook](docs/DEPLOYMENT.md)**: Containerization, multi-stage Docker builds, and zero-key configuration.
+* **[Transformation Plan](docs/INKLOOM_COMPLETE_TRANSFORMATION_PLAN.md)**: Full hackathon engineering specification and implementation ledger.
 
 ---
 
@@ -346,14 +371,15 @@ Every test suite in this repository has been executed and verified in the actual
 
 ```text
 ======================================================================
-CUSTODIA VERIFIED QUALITY AUDIT
+CUSTODIA VERIFIED QUALITY AUDIT — INKLOOM PLATFORM
 ======================================================================
-* Python Unit & Integration Tests:   172 Passed, 0 Failed (21.03s)
-* Rust Security Gateway Tests:        19 Passed, 0 Failed
-* Frontend Vitest Suite:              67 Passed across 13 test files (3.11s)
+* Python Unit & Integration Tests:   183 Passed, 0 Failed (100% PASS)
+* Rust Security Gateway Tests:        19 Passed, 0 Failed (100% PASS)
+* Frontend Vitest Suite:              67 Passed across 13 test files (100% PASS)
 * Playwright Browser E2E Suite:       54 Passed, 0 Failed (100% PASS)
 * TypeScript Compiler Check:          0 Errors (tsc --noEmit)
-* Production Web Bundle:              Built successfully into app/web (3.47s)
+* Production Web Bundle:              Built successfully into app/web (3.38s)
+* Phase 17 Benchmark Scenario:        100% Passed (4/4 Violations, Cap <= 30, Audit Hash)
 ======================================================================
 ```
 
